@@ -1,17 +1,16 @@
 # The MIT License (MIT)
 # Copyright © 2023 Yuma Rao
-# TODO(developer): Set your name
-# Copyright © 2023 <your name>
+# Copyright © 2025 Taoillium Foundation
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
 # the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
 # and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of
 # the Software.
 
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
 # THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -19,6 +18,10 @@
 
 
 import time
+import threading
+from fastapi import FastAPI, Request
+import uvicorn
+import asyncio
 
 # Bittensor
 import bittensor as bt
@@ -26,8 +29,12 @@ import bittensor as bt
 # import base validator class which takes care of most of the boilerplate
 from template.base.validator import BaseValidatorNeuron
 
-# Bittensor Validator Template:
-from template.validator import forward
+from template.validator.reward import get_rewards
+from template.utils.uids import get_random_uids
+import services.protocol as protocol
+from services.config import settings
+from services.security import verify_token
+from services.api import ValidatorClient
 
 
 class Validator(BaseValidatorNeuron):
@@ -40,24 +47,141 @@ class Validator(BaseValidatorNeuron):
     """
 
     def __init__(self, config=None):
-        super(Validator, self).__init__(config=config)
+        super().__init__(config=config)
 
         bt.logging.info("load_state()")
         self.load_state()
-
+        self.http_thread = None
+        self.http_app = None
+        self.http_host = settings.VALIDATOR_HOST
+        self.http_port = settings.VALIDATOR_PORT
+        self.loop = asyncio.get_event_loop()
+        
+        self.start_http_server()
         # TODO(developer): Anything specific to your use case you can do here
+
+    def start_http_server(self):
+        """start FastAPI HTTP server"""
+        app = FastAPI()
+        validator_self = self
+
+        @app.post("/task/receive")
+        async def receive(request: Request):
+            token = request.headers.get("Authorization", "")
+            if not verify_token(token):
+                return {"error": "Unauthorized"}
+            
+            data = await request.json()
+            if data is None:
+                return {"error": "Missing 'input' in request body"}
+            # here use run_coroutine_threadsafe
+            future = asyncio.run_coroutine_threadsafe(
+                validator_self.forward_with_input(data), validator_self.loop
+            )
+            responses = future.result()
+            return responses
+        
+        @app.post("/stake/add")
+        async def stake_add(request: Request):
+            # token = request.headers.get("Authorization", "")
+            # if not verify_token(token):
+            #     return {"error": "Unauthorized"}
+            data = await request.json()
+            amount = data.get("amount")
+            try:
+                amount = float(amount)
+                if amount <= 0:
+                    return {"error": "Amount must be greater than 0"}
+            except (TypeError, ValueError):
+                return {"error": "Amount must be a valid number"}
+            future = asyncio.run_coroutine_threadsafe(
+                validator_self.stake_add(amount), validator_self.loop
+            )
+            responses = future.result()
+            return responses
+
+        def run():
+            uvicorn.run(app, host=self.http_host, port=self.http_port, log_level="info")
+
+        self.http_app = app
+        self.http_thread = threading.Thread(target=run, daemon=True)
+        self.http_thread.start()
+        bt.logging.info(f"HTTP server started on port {self.http_port}")
+
+    async def stake_add(self, amount):
+        result = self.subtensor.add_stake(
+            wallet=self.wallet,
+            netuid=self.config.netuid,
+            amount=amount,
+            wait_for_finalization=True
+        )
+        bt.logging.info(f"Stake add result: {result}")
+        return {
+            "success": result,
+            "message": None if result else "Stake failed, see logs for details."
+        }
+
+    async def forward_with_input(self, user_input):
+        miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
+        responses = await self.dendrite(
+            axons=[self.metagraph.axons[uid] for uid in miner_uids],
+            synapse=protocol.ServiceProtocol(input=user_input),
+            deserialize=True,
+        )
+        bt.logging.info(f"[HTTP] Raw responses: {responses}")
+        # only return non-empty responses
+        outputs = [r for r in responses if r]
+        return outputs
 
     async def forward(self):
         """
-        Validator forward pass. Consists of:
-        - Generating the query
-        - Querying the miners
-        - Getting the responses
-        - Rewarding the miners
-        - Updating the scores
+        The forward function is called by the validator every time step.
+
+        It is responsible for querying the network and scoring the responses.
+
+        Args:
+            self (:obj:`bittensor.neuron.Neuron`): The neuron object which contains all the necessary state for the validator.
+
         """
-        # TODO(developer): Rewrite this function based on your protocol definition.
-        return await forward(self)
+        # TODO(developer): Define how the validator selects a miner to query, how often, etc.
+        # get_random_uids is an example method, but you can replace it with your own.
+        miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
+
+        # The dendrite client queries the network.
+        responses = await self.dendrite(
+            # Send the query to selected miner axons in the network.
+            axons=[self.metagraph.axons[uid] for uid in miner_uids],
+            # Construct a dummy query. This simply contains a single integer.
+            synapse=protocol.ServiceProtocol(input={"__type__": "miner_health"}),
+            # All responses have the deserialize function called on them before returning.
+            # You are encouraged to define your own deserialization function.
+            deserialize=True,
+        )
+
+        # Log the results for monitoring purposes.
+        bt.logging.info(f"Received responses: {responses}")
+
+        statuses = []
+        for response in responses:
+            statuses.append(response.get("status", ""))
+
+        uids = miner_uids.tolist()
+        client = ValidatorClient(self.uid)
+        result = client.post("/sapi/node/task/validate", json={"uids": uids, "statuses": statuses})
+        bt.logging.info(f"Validate result: {result}")
+        values = result.get('values', [])
+        total = sum(result['values'])
+        if result.get("error"):
+            bt.logging.error(f"Validate error: {result.get('error')}")
+        elif len(values) == len(uids) and result['uids'] == uids and total > 0:
+            rewards = [x / total for x in values]
+            bt.logging.info(f"Scored responses: {rewards}")
+            # Update the scores based on the rewards. You may want to define your own update_scores function for custom behavior.
+            self.update_scores(rewards, miner_uids)
+        else:
+            bt.logging.error(f"Validate failed, invalid result: {result}")
+        
+        time.sleep(5)
 
 
 # The main function parses the configuration and runs the validator.

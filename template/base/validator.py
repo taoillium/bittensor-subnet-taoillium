@@ -1,17 +1,16 @@
 # The MIT License (MIT)
 # Copyright © 2023 Yuma Rao
-# TODO(developer): Set your name
-# Copyright © 2023 <your name>
+# Copyright © 2025 Taoillium Foundation
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
 # the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
 # and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of
 # the Software.
 
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
 # THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -278,6 +277,9 @@ class BaseValidatorNeuron(BaseNeuron):
             wait_for_inclusion=False,
             version_key=self.spec_version,
         )
+        # sync once, ensure get latest chain state
+        self.metagraph.sync(subtensor=self.subtensor)
+        bt.logging.info(f"set_weights: my uid: {self.uid}, last_update: {self.metagraph.last_update[self.uid]}, block: {self.block}")
         if result is True:
             bt.logging.info("set_weights on chain successfully!")
         else:
@@ -285,13 +287,21 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def resync_metagraph(self):
         """Resyncs the metagraph and updates the hotkeys and moving averages based on the new metagraph."""
-        bt.logging.info("resync_metagraph()")
 
         # Copies state of metagraph before syncing.
         previous_metagraph = copy.deepcopy(self.metagraph)
 
         # Sync the metagraph.
         self.metagraph.sync(subtensor=self.subtensor)
+
+        log = (
+            f"resync_metagraph() | "
+            f"uid: {self.uid} | "
+            f"last_update[{self.uid}]: {self.metagraph.last_update[self.uid]} | "
+            f"Block: {self.metagraph.block.item()} | "
+            f"Incentive: {self.metagraph.I[self.uid]} | "
+        )
+        bt.logging.info(log)
 
         # Check if the metagraph axon info has changed.
         if previous_metagraph.axons == self.metagraph.axons:

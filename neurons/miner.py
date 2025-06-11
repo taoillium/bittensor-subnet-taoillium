@@ -1,17 +1,16 @@
 # The MIT License (MIT)
 # Copyright © 2023 Yuma Rao
-# TODO(developer): Set your name
-# Copyright © 2023 <your name>
+# Copyright © 2025 Taoillium Foundation
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
 # the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
 # and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of
 # the Software.
 
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
 # THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -21,8 +20,8 @@ import time
 import typing
 import bittensor as bt
 
-# Bittensor Miner Template:
-import template
+from services.api import MinerClient
+import services.protocol as protocol
 
 # import base miner class which takes care of most of the boilerplate
 from template.base.miner import BaseMinerNeuron
@@ -30,11 +29,7 @@ from template.base.miner import BaseMinerNeuron
 
 class Miner(BaseMinerNeuron):
     """
-    Your miner neuron class. You should use this class to define your miner's behavior. In particular, you should replace the forward function with your own logic. You may also want to override the blacklist and priority functions according to your needs.
-
-    This class inherits from the BaseMinerNeuron class, which in turn inherits from BaseNeuron. The BaseNeuron class takes care of routine tasks such as setting up wallet, subtensor, metagraph, logging directory, parsing config, etc. You can override any of the methods in BaseNeuron if you need to customize the behavior.
-
-    This class provides reasonable default behavior for a miner such as blacklisting unrecognized hotkeys, prioritizing requests based on stake, and forwarding requests to the forward function. If you need to define custom
+    Bittensor Miner.
     """
 
     def __init__(self, config=None):
@@ -42,28 +37,34 @@ class Miner(BaseMinerNeuron):
 
         # TODO(developer): Anything specific to your use case you can do here
 
-    async def forward(
-        self, synapse: template.protocol.Dummy
-    ) -> template.protocol.Dummy:
+    async def forward(self, synapse: protocol.ServiceProtocol) -> protocol.ServiceProtocol:
         """
-        Processes the incoming 'Dummy' synapse by performing a predefined operation on the input data.
+        Processes the incoming 'ServiceProtocol' synapse by performing a predefined operation on the input data.
         This method should be replaced with actual logic relevant to the miner's purpose.
 
         Args:
-            synapse (template.protocol.Dummy): The synapse object containing the 'dummy_input' data.
+            synapse (protocol.ServiceProtocol): The synapse object containing the 'input' data.
 
         Returns:
-            template.protocol.Dummy: The synapse object with the 'dummy_output' field set to twice the 'dummy_input' value.
+            protocol.ServiceProtocol: The synapse object with the 'output' field set to the 'input' value.
 
         The 'forward' function is a placeholder and should be overridden with logic that is appropriate for
         the miner's intended operation. This method demonstrates a basic transformation of input data.
         """
-        # TODO(developer): Replace with actual implementation logic.
-        synapse.dummy_output = synapse.dummy_input * 2
+
+        bt.logging.debug(f"Miner forward: {synapse.input})")
+        if synapse.input.get("__type__") == "miner_health":
+            synapse.output = {"status": "ok", "uid": self.uid, "device": self.device}
+        else:
+            client = MinerClient(self.uid)
+            response = client.post("/sapi/node/task/create", json=synapse.input)
+            bt.logging.debug(f"Miner forward response: {response} (type: {type(response)})")
+            synapse.output = response
         return synapse
 
+
     async def blacklist(
-        self, synapse: template.protocol.Dummy
+        self, synapse: protocol.ServiceProtocol
     ) -> typing.Tuple[bool, str]:
         """
         Determines whether an incoming request should be blacklisted and thus ignored. Your implementation should
@@ -126,7 +127,7 @@ class Miner(BaseMinerNeuron):
         )
         return False, "Hotkey recognized!"
 
-    async def priority(self, synapse: template.protocol.Dummy) -> float:
+    async def priority(self, synapse: protocol.ServiceProtocol) -> float:
         """
         The priority function determines the order in which requests are handled. More valuable or higher-priority
         requests are processed before others. You should design your own priority mechanism with care.
@@ -134,7 +135,7 @@ class Miner(BaseMinerNeuron):
         This implementation assigns priority to incoming requests based on the calling entity's stake in the metagraph.
 
         Args:
-            synapse (template.protocol.Dummy): The synapse object that contains metadata about the incoming request.
+            synapse (protocol.ServiceProtocol): The synapse object that contains metadata about the incoming request.
 
         Returns:
             float: A priority score derived from the stake of the calling entity.

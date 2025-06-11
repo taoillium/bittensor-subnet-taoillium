@@ -1,6 +1,6 @@
 <div align="center">
 
-# **Bittensor Subnet Template** <!-- omit in toc -->
+# **Bittensor Subnet Taoillium** <!-- omit in toc -->
 [![Discord Chat](https://img.shields.io/discord/308323056592486420.svg)](https://discord.gg/bittensor)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
 
@@ -18,8 +18,12 @@
 - [Installation](#installation)
   - [Before you proceed](#before-you-proceed)
   - [Install](#install)
-- [Writing your own incentive mechanism](#writing-your-own-incentive-mechanism)
-- [Writing your own subnet API](#writing-your-own-subnet-api)
+- [Project Structure Update](#project-structure-update)
+  - [Key Directories](#key-directories)
+    - [`neurons/`](#neurons)
+    - [`services/`](#services)
+  - [How to Extend](#how-to-extend)
+  - [Example Flow](#example-flow)
 - [Subnet Links](#subnet-links)
 - [License](#license)
 
@@ -78,24 +82,42 @@ Before you proceed with the installation of the subnet, note the following:
 
 ---
 
-## Writing your own incentive mechanism
+## Project Structure Update
 
-As described in [Quickstarter template](#quickstarter-template) section above, when you are ready to write your own incentive mechanism, update this template repository by editing the following files. The code in these files contains detailed documentation on how to update the template. Read the documentation in each of the files to understand how to update the template. There are multiple **TODO**s in each of the files identifying sections you should update. These files are:
-- `template/protocol.py`: Contains the definition of the wire-protocol used by miners and validators.
-- `neurons/miner.py`: Script that defines the miner's behavior, i.e., how the miner responds to requests from validators.
-- `neurons/validator.py`: This script defines the validator's behavior, i.e., how the validator requests information from the miners and determines the scores.
-- `template/forward.py`: Contains the definition of the validator's forward pass.
-- `template/reward.py`: Contains the definition of how validators reward miner responses.
+### Key Directories
 
-In addition to the above files, you should also update the following files:
-- `README.md`: This file contains the documentation for your project. Update this file to reflect your project's documentation.
-- `CONTRIBUTING.md`: This file contains the instructions for contributing to your project. Update this file to reflect your project's contribution guidelines.
-- `template/__init__.py`: This file contains the version of your project.
-- `setup.py`: This file contains the metadata about your project. Update this file to reflect your project's metadata.
-- `docs/`: This directory contains the documentation for your project. Update this directory to reflect your project's documentation.
+#### `neurons/`
+This directory contains the main entry points for the two core roles in a Bittensor subnet:
+- **`miner.py`**: Implements the logic for a subnet miner. The miner receives requests from validators, processes them (often by interacting with external APIs or services), and returns responses. The miner class inherits from a base class that handles most of the Bittensor-specific boilerplate, allowing you to focus on your custom logic.
+- **`validator.py`**: Implements the logic for a subnet validator. The validator queries miners, evaluates their responses, and assigns scores or rewards. This implementation includes an HTTP server (using FastAPI) to expose endpoints for external interaction and uses JWT-based authentication for security.
 
-__Note__
-The `template` directory should also be renamed to your project name.
+Both files are designed for easy extension: override the `forward` method to define your custom behavior for processing and validating requests.
+
+#### `services/`
+This directory modularizes the supporting infrastructure for your subnet logic, separating concerns and making the codebase more maintainable and extensible:
+- **`protocol.py`**: Defines the wire protocol (`ServiceProtocol`) used for communication between miners and validators. This protocol is based on Bittensor's `bt.Synapse` and specifies the request/response schema.
+- **`api.py`**: Provides HTTP client classes (`MinerClient`, `ValidatorClient`) for interacting with external APIs or services. These clients handle authentication and simplify making requests to your service endpoints.
+- **`security.py`**: Implements JWT-based authentication utilities, including token creation and verification, to secure API endpoints and inter-node communication.
+- **`config.py`**: Centralizes configuration management using environment variables and Pydantic settings, making it easy to adjust deployment parameters and secrets.
+
+### How to Extend
+
+- To **customize miner or validator behavior**, edit `neurons/miner.py` and `neurons/validator.py`, focusing on the `forward` methods.
+- To **change the protocol or add new message types**, update or extend `services/protocol.py`.
+- To **integrate with new external services or APIs**, add or modify client classes in `services/api.py`.
+- To **adjust authentication or security policies**, update `services/security.py`.
+- To **change configuration options**, edit `services/config.py` and your `.env` file.
+
+### Example Flow
+
+1. **Validator** sends a request to a **Miner** using the `ServiceProtocol`.
+2. **Miner** processes the request, possibly using a service client from `services/api.py`, and returns a response.
+3. **Validator** evaluates the response, scores the miner, and may interact with external APIs for validation or reward logic.
+
+---
+
+This modular structure makes it easy to adapt the template for your own use case, whether you are building a new incentive mechanism, integrating with external APIs, or deploying on different environments.
+
 ---
 
 # Writing your own subnet API
@@ -196,16 +218,17 @@ This repository is licensed under the MIT License.
 ```text
 # The MIT License (MIT)
 # Copyright © 2024 Opentensor Foundation
+# Copyright © 2025 Taoillium Foundation
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
 # the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
 # and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of
 # the Software.
 
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
 # THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
