@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     SRV_API_JWT_ALGORITHM: str = os.getenv("SRV_API_JWT_ALGORITHM", "HS256")
 
     CHAIN_NETWORK: str = os.getenv("CHAIN_NETWORK", "local")
-    CHAIN_ENDPOINT: str = os.getenv("CHAIN_ENDPOINT")
+    CHAIN_ENDPOINT: str = os.getenv("CHAIN_ENDPOINT", "")
     VALIDATOR_WALLET: str = os.getenv("VALIDATOR_WALLET", "validator")
     VALIDATOR_HOTKEY: str = os.getenv("VALIDATOR_HOTKEY", "default")
     VALIDATOR_PASSWORD: str = os.getenv("VALIDATOR_PASSWORD", "")
