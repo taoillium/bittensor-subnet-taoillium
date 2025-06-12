@@ -98,6 +98,9 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.info(
                     f"Running validator {self.axon} on network: {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}"
                 )
+
+                # Start  starts the miner's axon, making it active on the network.
+                self.axon.start()
             except Exception as e:
                 bt.logging.error(f"Failed to serve Axon with exception: {e}")
                 pass
