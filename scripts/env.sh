@@ -41,7 +41,7 @@ else
     echo "# .env file not found"
 fi
 
-network=${NETWORK:-local}
+network=${CHAIN_NETWORK:-local}
 default_chain_endpoint=ws://127.0.0.1:9944
 if [ "$network" == "finney" ]; then
     default_chain_endpoint=wss://entrypoint-finney.opentensor.ai
