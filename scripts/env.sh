@@ -52,7 +52,9 @@ fi
 chain_endpoint=${CHAIN_ENDPOINT:-$default_chain_endpoint}
 http_endpoint=$(echo "$chain_endpoint" | sed -e 's/^ws:\/\//http:\/\//' -e 's/^wss:\/\//https:\/\//')
 
+netuid=${CHAIN_NETUID:-2}
 echo "network: $network"
+echo "netuid: $netuid"
 echo "chain_endpoint: $chain_endpoint"
 echo "http_endpoint: $http_endpoint"
 
