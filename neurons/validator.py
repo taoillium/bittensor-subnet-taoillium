@@ -170,7 +170,7 @@ class Validator(BaseValidatorNeuron):
         result = client.post("/sapi/node/task/validate", json={"uids": uids, "statuses": statuses})
         bt.logging.info(f"Validate result: {result}")
         values = result.get('values', [])
-        total = sum(result['values'])
+        total = sum(values)
         if result.get("error"):
             bt.logging.error(f"Validate error: {result.get('error')}")
         elif len(values) == len(uids) and result['uids'] == uids and total > 0:
