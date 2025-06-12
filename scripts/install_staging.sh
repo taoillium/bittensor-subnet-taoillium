@@ -86,6 +86,9 @@ btcli stake add --wallet.name validator --wallet.hotkey default --subtensor.chai
 echo "Adding stake to the miner"
 btcli stake add --wallet.name miner --wallet.hotkey default --subtensor.chain_endpoint ${chain_endpoint} --amount 2 --partial
 
+echo "Start subnet"
+btcli subnet start --wallet.name owner --netuid $netuid --subtensor.chain_endpoint ${chain_endpoint}
+
 # Ensure both the miner and validator keys are successfully registered.
 echo "Listing subnets"
 btcli subnet list --subtensor.chain_endpoint ${chain_endpoint}
