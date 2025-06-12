@@ -133,7 +133,7 @@ class Validator(BaseValidatorNeuron):
         outputs = [r for r in responses if r]
         return outputs
 
-    async def forward(self):
+    async def forward(self, synapse: protocol.ServiceProtocol):
         """
         The forward function is called by the validator every time step.
 
