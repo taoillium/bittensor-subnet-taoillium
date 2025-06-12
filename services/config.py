@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     MANAGER_PORT: int = int(os.getenv("MANAGER_PORT", "8000"))
     MANAGER_DEBUG: str = os.getenv("MANAGER_DEBUG", "INFO").upper()
     MANAGER_RELOAD: bool = os.getenv("MANAGER_RELOAD", "false").lower() == "true"
-    NETUID: int = int(os.getenv("NETUID", "1"))
+    CHAIN_NETUID: int = int(os.getenv("CHAIN_NETUID", "1"))
 
     class Config:
         case_sensitive = True

@@ -37,7 +37,7 @@ def get_wallet_overview():
             "btcli", "wallet", "overview",
             "--wallet.name", settings.VALIDATOR_WALLET,
             "--subtensor.chain_endpoint", settings.CHAIN_ENDPOINT,
-            "--netuid", str(settings.NETUID),
+            "--netuid", str(settings.CHAIN_NETUID),
             "--json-output"
         ])
         return json.loads(result)
@@ -55,7 +55,7 @@ def stake_amount(amount):
             "--wallet.hotkey", settings.VALIDATOR_HOTKEY,
             "--subtensor.chain_endpoint", settings.CHAIN_ENDPOINT,
             "--amount", str(amount),
-            "--netuid", str(settings.NETUID),
+            "--netuid", str(settings.CHAIN_NETUID),
             "--json-output"
         ]
 

@@ -1,4 +1,11 @@
 #!/bin/bash
+CURRENT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "${CURRENT_DIR}/env.sh"
+
+if [ "$network" != "local" ]; then
+    echo "Non-local network detected, skipping installation"
+    exit 0
+fi
 
 trap 'echo "\nScript interrupted, exiting..."; exit 1' INT
 
@@ -8,23 +15,16 @@ trap 'echo "\nScript interrupted, exiting..."; exit 1' INT
 # Create a coldkey for the owner role
 wallet=${1:-owner}
 
+cd $CURRENT_DIR/../
+
 # Logic for setting up and running the environment
 setup_environment() {
-    if [ -z "$VIRTUAL_ENV" ]; then
-        if [ ! -d "venv" ]; then
-            python -m venv venv
-        fi
-        source venv/bin/activate
-    fi
-
-    # Install btcli
-    if ! command -v btcli &> /dev/null; then
-        echo "Installing btcli..."
-        python -m pip install -U bittensor-cli
-    fi
-
     # Install the bittensor-subnet-taoillium python package
-    python -m pip install -e .
+    if which uv > /dev/null; then
+        uv pip install -e .
+    else
+        python -m pip install -e .
+    fi
 
     # Create and set up wallets
     if ! btcli wallet inspect --wallet.name $wallet &> /dev/null; then
@@ -46,58 +46,53 @@ setup_environment() {
 # Call setup_environment every time
 setup_environment 
 
-## check localnet
-# next steps need to check if the localnet is running
-curl --silent --fail --max-time 2 http://127.0.0.1:9944
-rc=$?
-if [ $rc -eq 7 ]; then
-    echo "Error: ws://127.0.0.1:9944 is not running, please start the local chain (subtensor localnet)"
-    echo "Please run the following command to start the local chain:"
-    echo "cd ../subtensor && BUILD_BINARY=1 ./scripts/localnet.sh --no-purge"
+balance=$(btcli wallet balance --wallet.name $wallet --subtensor.chain_endpoint ${chain_endpoint} --json-output | jq -r ".balances.$wallet.free")
+echo "balance: $balance"
+if [[ -z "$balance" || "$balance" == "null" ]]; then
+    echo "Error: Could not determine wallet balance."
     exit 1
 fi
-
-balance=$(btcli wallet overview --wallet.name $wallet --subtensor.chain_endpoint ws://127.0.0.1:9944 2>/dev/null | grep -i 'Wallet balance:' | grep -Eo '[0-9]+([.][0-9]+)?' | head -n1)
 if (( $(echo "$balance < 2111" | bc -l) )); then
     echo "Error: $wallet wallet balance is less than 1111, current balance is $balance"
     exit 1
 fi
 
+
 echo "Creating subnet for $wallet"
-btcli subnet create --wallet.name $wallet --wallet.hotkey default --subtensor.chain_endpoint ws://127.0.0.1:9944
+btcli subnet create --wallet.name $wallet --wallet.hotkey default --subtensor.chain_endpoint ${chain_endpoint}
 
 # Transfer tokens to miner and validator coldkeys
 export BT_MINER_TOKEN_WALLET=$(sed -nE 's/.*"ss58Address": ?"([^"]+)".*/\1/p' ~/.bittensor/wallets/miner/coldkeypub.txt)
 export BT_VALIDATOR_TOKEN_WALLET=$(sed -nE 's/.*"ss58Address": ?"([^"]+)".*/\1/p' ~/.bittensor/wallets/validator/coldkeypub.txt)
 
 echo "Transferring tokens to miner"
-btcli wallet transfer --subtensor.network ws://127.0.0.1:9944 --wallet.name $wallet --dest $BT_MINER_TOKEN_WALLET --amount 11
+btcli wallet transfer --subtensor.network ${chain_endpoint} --wallet.name $wallet --dest $BT_MINER_TOKEN_WALLET --amount 11
 
 echo "Transferring tokens to validator"
-btcli wallet transfer --subtensor.network ws://127.0.0.1:9944 --wallet.name $wallet --dest $BT_VALIDATOR_TOKEN_WALLET --amount 1100
+btcli wallet transfer --subtensor.network ${chain_endpoint} --wallet.name $wallet --dest $BT_VALIDATOR_TOKEN_WALLET --amount 1100
 
 
 echo "Registering validator to subnet"
-btcli subnet register --wallet.name validator --netuid 2 --wallet.hotkey default --subtensor.chain_endpoint ws://127.0.0.1:9944
+btcli subnet register --wallet.name validator --netuid 2 --wallet.hotkey default --subtensor.chain_endpoint ${chain_endpoint}
 
 # Register wallet hotkeys to subnet
 echo "Registering miner to subnet"
-btcli subnet register --wallet.name miner --netuid 2 --wallet.hotkey default --subtensor.chain_endpoint ws://127.0.0.1:9944
+btcli subnet register --wallet.name miner --netuid 2 --wallet.hotkey default --subtensor.chain_endpoint ${chain_endpoint}
 
 
 echo "Adding stake to the validator"
-btcli stake add --wallet.name validator --wallet.hotkey default --subtensor.chain_endpoint ws://127.0.0.1:9944 --amount 10 --partial
+btcli stake add --wallet.name validator --wallet.hotkey default --subtensor.chain_endpoint ${chain_endpoint} --amount 10 --partial
 
 echo "Adding stake to the miner"
-btcli stake add --wallet.name miner --wallet.hotkey default --subtensor.chain_endpoint ws://127.0.0.1:9944 --amount 2 --partial
+btcli stake add --wallet.name miner --wallet.hotkey default --subtensor.chain_endpoint ${chain_endpoint} --amount 2 --partial
 
 # Ensure both the miner and validator keys are successfully registered.
 echo "Listing subnets"
-btcli subnet list --subtensor.chain_endpoint ws://127.0.0.1:9944
+btcli subnet list --subtensor.chain_endpoint ${chain_endpoint}
 
 
 echo "Checking validator wallet"
-btcli wallet overview --wallet.name validator --subtensor.chain_endpoint ws://127.0.0.1:9944
+btcli wallet overview --wallet.name validator --subtensor.chain_endpoint ${chain_endpoint}
 
 echo "Checking miner wallet"
-btcli wallet overview --wallet.name miner --subtensor.chain_endpoint ws://127.0.0.1:9944
+btcli wallet overview --wallet.name miner --subtensor.chain_endpoint ${chain_endpoint}
