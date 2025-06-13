@@ -66,9 +66,9 @@ class Validator(BaseValidatorNeuron):
 
         @app.post("/task/receive")
         async def receive(request: Request):
-            token = request.headers.get("Authorization", "")
-            if not verify_token(token):
-                return {"error": "Unauthorized"}
+            # token = request.headers.get("Authorization", "")
+            # if not verify_token(token):
+            #     return {"error": "Unauthorized"}
             
             data = await request.json()
             if data is None:
@@ -122,6 +122,12 @@ class Validator(BaseValidatorNeuron):
 
     async def forward_with_input(self, user_input):
         miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
+        # Filter out validator's own uid
+        bt.logging.info(f"Miner uids: {miner_uids}, validator uid: {self.uid}")
+        miner_uids = [uid for uid in miner_uids if uid != self.uid]
+        if not miner_uids:
+            return {"error": "No available miners found"}
+            
         responses = await self.dendrite(
             axons=[self.metagraph.axons[uid] for uid in miner_uids],
             synapse=protocol.ServiceProtocol(input=user_input),
@@ -145,13 +151,19 @@ class Validator(BaseValidatorNeuron):
         # TODO(developer): Define how the validator selects a miner to query, how often, etc.
         # get_random_uids is an example method, but you can replace it with your own.
         miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
+        # Filter out validator's own uid and convert to Python int
+        miner_uids = [int(uid) for uid in miner_uids if uid != self.uid]
+        if not miner_uids:
+            bt.logging.warning("No available miners found after filtering")
+            synapse.output = {"error": "No available miners found"}
+            return synapse
 
         # The dendrite client queries the network.
         responses = await self.dendrite(
             # Send the query to selected miner axons in the network.
             axons=[self.metagraph.axons[uid] for uid in miner_uids],
             # Construct a dummy query. This simply contains a single integer.
-            synapse=protocol.ServiceProtocol(input={"__type__": "miner_health"}),
+            synapse=synapse,
             # All responses have the deserialize function called on them before returning.
             # You are encouraged to define your own deserialization function.
             deserialize=True,
@@ -160,13 +172,9 @@ class Validator(BaseValidatorNeuron):
         # Log the results for monitoring purposes.
         bt.logging.info(f"Received responses: {responses}")
 
-        statuses = []
-        for response in responses:
-            statuses.append(response.get("status", ""))
-
-        uids = miner_uids.tolist()
+        uids = miner_uids  # Already converted to Python int
         client = ValidatorClient(self.uid)
-        result = client.post("/sapi/node/task/validate", json={"uids": uids, "statuses": statuses})
+        result = client.post("/sapi/node/task/validate", json={"uids": uids, "uid": int(self.uid), "responses": responses})
         bt.logging.info(f"Validate result: {result}")
         values = result.get('values', [])
         total = sum(values)
@@ -176,6 +184,7 @@ class Validator(BaseValidatorNeuron):
             rewards = [x / total for x in values]
             bt.logging.info(f"Scored responses: {rewards}")
             # Update the scores based on the rewards. You may want to define your own update_scores function for custom behavior.
+            bt.logging.info(f"Updating scores: {rewards}, {miner_uids}")
             self.update_scores(rewards, miner_uids)
         else:
             bt.logging.error(f"Validate failed, invalid result: {result}")
@@ -187,7 +196,7 @@ class Validator(BaseValidatorNeuron):
 
     async def concurrent_forward(self):
         coroutines = [
-            self.forward(protocol.ServiceProtocol(input={"__type__": "miner_health"}))
+            self.forward(protocol.ServiceProtocol(input={"__type__": "health"}))
             for _ in range(self.config.neuron.num_concurrent_forwards)
         ]
         await asyncio.gather(*coroutines)

@@ -53,8 +53,8 @@ class Miner(BaseMinerNeuron):
         """
 
         bt.logging.debug(f"Miner forward: {synapse.input})")
-        if synapse.input.get("__type__") == "miner_health":
-            synapse.output = {"status": "ok", "uid": self.uid, "device": self.device}
+        if synapse.input.get("__type__") == "health":
+            synapse.output = {"method": "health", "success": True, "uid": self.uid, "device": self.device}
         else:
             client = MinerClient(self.uid)
             response = client.post("/sapi/node/task/create", json=synapse.input)
