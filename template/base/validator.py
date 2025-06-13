@@ -26,6 +26,7 @@ import bittensor as bt
 
 from typing import List, Union
 from traceback import print_exception
+from abc import ABC, abstractmethod
 
 from template.base.neuron import BaseNeuron
 from template.base.utils.weight_utils import (
@@ -89,6 +90,14 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info("serving ip to chain...")
         try:
             self.axon = bt.axon(wallet=self.wallet, config=self.config)
+             # Attach determiners which functions are called when servicing a request.
+            bt.logging.info(f"Attaching forward function to validator axon.")
+            self.axon.attach(
+                forward_fn=self.forward,
+                # blacklist_fn=self.blacklist,
+                # priority_fn=self.priority,
+            )
+            bt.logging.info(f"Axon created: {self.axon}")
 
             try:
                 self.subtensor.serve_axon(
@@ -111,12 +120,9 @@ class BaseValidatorNeuron(BaseNeuron):
             )
             pass
 
+    @abstractmethod
     async def concurrent_forward(self):
-        coroutines = [
-            self.forward()
-            for _ in range(self.config.neuron.num_concurrent_forwards)
-        ]
-        await asyncio.gather(*coroutines)
+        ...
 
     def run(self):
         """

@@ -55,7 +55,6 @@ class Validator(BaseValidatorNeuron):
         self.http_app = None
         self.http_host = settings.VALIDATOR_HOST
         self.http_port = settings.VALIDATOR_PORT
-        self.loop = asyncio.get_event_loop()
         
         self.start_http_server()
         # TODO(developer): Anything specific to your use case you can do here
@@ -83,9 +82,9 @@ class Validator(BaseValidatorNeuron):
         
         @app.post("/stake/add")
         async def stake_add(request: Request):
-            # token = request.headers.get("Authorization", "")
-            # if not verify_token(token):
-            #     return {"error": "Unauthorized"}
+            token = request.headers.get("Authorization", "")
+            if not verify_token(token):
+                return {"error": "Unauthorized"}
             data = await request.json()
             amount = data.get("amount")
             try:
@@ -133,7 +132,7 @@ class Validator(BaseValidatorNeuron):
         outputs = [r for r in responses if r]
         return outputs
 
-    async def forward(self, synapse: protocol.ServiceProtocol):
+    async def forward(self, synapse: protocol.ServiceProtocol) -> protocol.ServiceProtocol:
         """
         The forward function is called by the validator every time step.
 
@@ -181,7 +180,17 @@ class Validator(BaseValidatorNeuron):
         else:
             bt.logging.error(f"Validate failed, invalid result: {result}")
         
+        synapse.output = result
         time.sleep(5)
+        return synapse
+    
+
+    async def concurrent_forward(self):
+        coroutines = [
+            self.forward(protocol.ServiceProtocol(input={"__type__": "miner_health"}))
+            for _ in range(self.config.neuron.num_concurrent_forwards)
+        ]
+        await asyncio.gather(*coroutines)
 
 
 # The main function parses the configuration and runs the validator.
