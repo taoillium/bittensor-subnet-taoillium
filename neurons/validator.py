@@ -66,9 +66,9 @@ class Validator(BaseValidatorNeuron):
 
         @app.post("/task/receive")
         async def receive(request: Request):
-            # token = request.headers.get("Authorization", "")
-            # if not verify_token(token):
-            #     return {"error": "Unauthorized"}
+            token = request.headers.get("Authorization", "")
+            if not verify_token(token):
+                return {"error": "Unauthorized"}
             
             data = await request.json()
             if data is None:
