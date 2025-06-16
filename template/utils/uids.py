@@ -17,13 +17,28 @@ def check_uid_availability(
     """
     # Filter non serving axons.
     if not metagraph.axons[uid].is_serving:
+        bt.logging.debug(f"Uid: {uid} is not serving")
         return False
+        
+    # Filter inactive nodes
+    if not metagraph.active[uid]:
+        bt.logging.debug(f"Uid: {uid} is not active")
+        return False
+        
+    # Filter nodes with no stake
+    if metagraph.S[uid] <= 0:
+        bt.logging.debug(f"Uid: {uid} has no stake")
+        return False
+        
     # Filter validator permit > 1024 stake.
     if metagraph.validator_permit[uid]:
+        # For validators, no stake limit
+        return True
+    else:
+        # For non-validators, just log a warning if stake exceeds limit
         if metagraph.S[uid] > vpermit_tao_limit:
-            return False
-    # Available otherwise.
-    return True
+            bt.logging.warning(f"Uid: {uid} has more than vpermit_tao_limit stake: {metagraph.S[uid]}")
+        return True
 
 
 def get_random_uids(self, k: int, exclude: List[int] = None) -> np.ndarray:
