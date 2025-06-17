@@ -53,8 +53,6 @@ class Validator(BaseValidatorNeuron):
         self.load_state()
         self.http_thread = None
         self.http_app = None
-        self.http_host = settings.VALIDATOR_HOST
-        self.http_port = settings.VALIDATOR_PORT
         
         self.start_http_server()
         # TODO(developer): Anything specific to your use case you can do here
@@ -100,12 +98,12 @@ class Validator(BaseValidatorNeuron):
             return responses
 
         def run():
-            uvicorn.run(app, host=self.http_host, port=self.http_port, log_level="info")
+            uvicorn.run(app, host=settings.VALIDATOR_HOST, port=settings.VALIDATOR_PORT, log_level="info")
 
         self.http_app = app
         self.http_thread = threading.Thread(target=run, daemon=True)
         self.http_thread.start()
-        bt.logging.info(f"HTTP server started on port {self.http_port}")
+        bt.logging.info(f"HTTP server started on port {settings.VALIDATOR_PORT}")
 
     async def stake_add(self, amount):
         result = self.subtensor.add_stake(
@@ -157,7 +155,7 @@ class Validator(BaseValidatorNeuron):
         if not miner_uids:
             bt.logging.warning("No available miners found after filtering")
             synapse.output = {"error": "No available miners found"}
-            time.sleep(5)
+            time.sleep(settings.VALIDATOR_SLEEP_TIME)
             return synapse
 
         # The dendrite client queries the network.
@@ -192,7 +190,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"Validate failed, invalid result: {result}")
         
         synapse.output = result
-        time.sleep(5)
+        time.sleep(settings.VALIDATOR_SLEEP_TIME)
         return synapse
     
 

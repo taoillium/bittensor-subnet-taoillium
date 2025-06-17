@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     MANAGER_RELOAD: bool = os.getenv("MANAGER_RELOAD", "false").lower() == "true"
     CHAIN_NETUID: int = int(os.getenv("CHAIN_NETUID", "1"))
 
+    VALIDATOR_SLEEP_TIME: int = int(os.getenv("VALIDATOR_SLEEP_TIME", "1"))
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         default_chain_endpoint = "ws://127.0.0.1:9944"
