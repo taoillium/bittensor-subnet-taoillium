@@ -27,6 +27,7 @@ from template.utils.config import check_config, add_args, config
 from template.utils.misc import ttl_get_block
 from template import __spec_version__ as spec_version
 from template.mock import MockSubtensor, MockMetagraph
+from websockets.protocol import State as WebSocketClientState
 
 
 class BaseNeuron(ABC):
@@ -108,6 +109,32 @@ class BaseNeuron(ABC):
         )
         self.step = 0
 
+    def set_subtensor(self):
+        try:
+            if (
+                self.subtensor
+                and self.subtensor.substrate
+                and self.subtensor.substrate.ws
+                and self.subtensor.substrate.ws.state is WebSocketClientState.OPEN
+            ):
+                # bt.logging.debug(
+                #     f"Subtensor already set"
+                # )
+                return
+
+            bt.logging.info(
+                f"Getting subtensor"
+            )
+
+            self.subtensor = bt.subtensor(config=self.config)
+
+            # check registered
+            self.check_registered()
+        except Exception as e:
+            bt.logging.info(
+                f"[Error] Getting subtensor: {e}"
+            )
+
     @abstractmethod
     async def forward(self, synapse: bt.Synapse) -> bt.Synapse:
         ...
@@ -120,6 +147,8 @@ class BaseNeuron(ABC):
         """
         Wrapper for synchronizing the state of the network for the given miner or validator.
         """
+        self.set_subtensor()
+
         # Ensure miner or validator hotkey is still registered on the network.
         self.check_registered()
 
