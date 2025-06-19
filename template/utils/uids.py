@@ -22,13 +22,13 @@ def check_uid_availability(
         
     # Filter inactive nodes
     if not metagraph.active[uid]:
-        bt.logging.debug(f"Uid: {uid} is not active")
-        return False
+        bt.logging.warning(f"Uid: {uid} is not active")
+        return True
         
     # Filter nodes with no stake
     if metagraph.S[uid] <= 0:
-        bt.logging.debug(f"Uid: {uid} has no stake")
-        return False
+        bt.logging.warning(f"Uid: {uid} has no stake")
+        return True
         
     # Filter validator permit > 1024 stake.
     if metagraph.validator_permit[uid]:
