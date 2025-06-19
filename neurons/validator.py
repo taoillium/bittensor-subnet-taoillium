@@ -151,17 +151,17 @@ class Validator(BaseValidatorNeuron):
         miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
         bt.logging.debug(f"Validator forward uids: {miner_uids}, validator uid: {self.uid}")
         # Filter out validator's own uid and convert to Python int
-        miner_uids = [int(uid) for uid in miner_uids if uid != self.uid]
-        if not miner_uids:
-            bt.logging.warning("No available miners found after filtering")
-            synapse.output = {"error": "No available miners found"}
+        checked_uids = [int(uid) for uid in miner_uids if uid != self.uid]
+        if not checked_uids:
+            bt.logging.warning("No available nodes found after filtering")
+            synapse.output = {"error": "No available nodes found"}
             time.sleep(settings.VALIDATOR_SLEEP_TIME)
             return synapse
 
         # The dendrite client queries the network.
         responses = await self.dendrite(
             # Send the query to selected miner axons in the network.
-            axons=[self.metagraph.axons[uid] for uid in miner_uids],
+            axons=[self.metagraph.axons[uid] for uid in checked_uids],
             # Construct a dummy query. This simply contains a single integer.
             synapse=synapse,
             # All responses have the deserialize function called on them before returning.
@@ -169,22 +169,29 @@ class Validator(BaseValidatorNeuron):
             deserialize=True,
         )
 
-        # Log the results for monitoring purposes.
-        bt.logging.info(f"Received responses: {responses}")
+        
+        responses.append({"method": "health", "success": True, "uid": self.uid, "device": self.device})
+        
+        uids = checked_uids  # Already converted to Python int
+        uids.append(self.uid)
 
-        uids = miner_uids  # Already converted to Python int
         client = ValidatorClient(self.uid)
-        result = client.post("/sapi/node/task/validate", json={"uids": uids, "uid": int(self.uid), "responses": responses})
-        bt.logging.info(f"Validate result: {result}")
+        # Log the results for monitoring purposes.
+        data = {"uids": uids, "uid": int(self.uid), "responses": responses}
+        bt.logging.debug(
+            f"request node/task/validate: {data}"
+        )
+        result = client.post("/sapi/node/task/validate", json=data)
+        bt.logging.debug(f"Validate result: {result}")
         values = result.get('values', [])
         total = sum(values)
         if result.get("error"):
             bt.logging.error(f"Validate error: {result.get('error')}")
         elif len(values) == len(uids) and result['uids'] == uids and total > 0:
             rewards = [x / total for x in values]
-            bt.logging.info(f"Scored responses: {rewards}")
+            bt.logging.debug(f"Scored responses: {rewards}")
             # Update the scores based on the rewards. You may want to define your own update_scores function for custom behavior.
-            bt.logging.info(f"Updating scores: {rewards}, {miner_uids}")
+            bt.logging.debug(f"Updating scores: {rewards}, {miner_uids}")
             self.update_scores(rewards, miner_uids)
         else:
             bt.logging.error(f"Validate failed, invalid result: {result}")
