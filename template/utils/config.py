@@ -216,6 +216,13 @@ def add_validator_args(cls, parser):
     )
 
     parser.add_argument(
+        "--neuron.external_reward_weight",
+        type=float,
+        help="Weight for external rewards in hybrid scoring (0.0 to 1.0). The remaining weight goes to stake-based rewards.",
+        default=0.5,
+    )
+
+    parser.add_argument(
         "--neuron.axon_off",
         "--axon_off",
         action="store_true",

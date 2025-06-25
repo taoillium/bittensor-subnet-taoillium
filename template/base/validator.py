@@ -335,7 +335,11 @@ class BaseValidatorNeuron(BaseNeuron):
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)
 
     def update_scores(self, rewards: np.ndarray, uids: List[int]):
-        """Performs exponential moving average on the scores based on the rewards received from the miners."""
+        """
+        Performs exponential moving average on the scores based on the rewards received from the miners.
+        Implements a hybrid scoring mechanism: 50% from external rewards, 50% from stake-based rewards.
+        If external rewards are empty or invalid, uses only stake-based rewards.
+        """
 
         # Check if rewards contains NaN values.
         if np.isnan(rewards).any():
@@ -367,11 +371,36 @@ class BaseValidatorNeuron(BaseNeuron):
                 f"cannot be broadcast to uids array of shape {uids_array.shape}"
             )
 
+        # Get stake-based rewards for the specified uids
+        stake_rewards = self._calculate_stake_rewards(uids_array)
+        
+        # Check if external rewards are valid (non-zero sum)
+        total_external_reward = np.sum(rewards)
+        if total_external_reward > 0:
+            # Use hybrid scoring when external rewards are valid
+            external_weight = self.config.neuron.external_reward_weight
+            # Validate external_weight is within [0.0, 1.0]
+            if not 0.0 <= external_weight <= 1.0:
+                bt.logging.warning(f"Invalid external_reward_weight: {external_weight}. Clamping to [0.0, 1.0]")
+                external_weight = max(0.0, min(1.0, external_weight))
+            
+            stake_weight = 1.0 - external_weight
+            combined_rewards = external_weight * rewards + stake_weight * stake_rewards
+            
+            bt.logging.debug(f"External rewards: {rewards}")
+            bt.logging.debug(f"Stake rewards: {stake_rewards}")
+            bt.logging.debug(f"External weight: {external_weight}, Stake weight: {stake_weight}")
+            bt.logging.debug(f"Combined rewards: {combined_rewards}")
+        else:
+            # Use only stake-based rewards when external rewards are invalid
+            combined_rewards = stake_rewards
+            bt.logging.debug(f"External rewards invalid (sum={total_external_reward}), using only stake rewards: {stake_rewards}")
+
         # Compute forward pass rewards, assumes uids are mutually exclusive.
         # shape: [ metagraph.n ]
         scattered_rewards: np.ndarray = np.zeros_like(self.scores)
-        scattered_rewards[uids_array] = rewards
-        bt.logging.debug(f"Scattered rewards: {rewards}")
+        scattered_rewards[uids_array] = combined_rewards
+        bt.logging.debug(f"Scattered rewards: {scattered_rewards}")
 
         # Update scores with rewards produced by this step.
         # shape: [ metagraph.n ]
@@ -383,6 +412,34 @@ class BaseValidatorNeuron(BaseNeuron):
             alpha * scattered_rewards + (1 - alpha) * self.scores
         )
         bt.logging.debug(f"Updated moving avg scores: {self.scores}")
+
+    def _calculate_stake_rewards(self, uids: np.ndarray) -> np.ndarray:
+        """
+        Calculate stake-based rewards for the given UIDs.
+        Normalizes stake values to [0, 1] range for fair comparison with external rewards.
+        
+        Args:
+            uids: Array of UIDs to calculate stake rewards for
+            
+        Returns:
+            np.ndarray: Stake-based rewards normalized to [0, 1] range
+        """
+        # Get stake values for the specified UIDs
+        stake_values = self.metagraph.S[uids]
+        
+        # Handle case where all stakes are zero
+        total_stake = np.sum(stake_values)
+        if total_stake == 0:
+            bt.logging.warning("All specified UIDs have zero stake, using equal distribution")
+            return np.ones_like(stake_values) / len(stake_values)
+        
+        # Normalize stake values to [0, 1] range (sum to 1)
+        stake_rewards = stake_values / total_stake
+        
+        bt.logging.debug(f"Stake values for UIDs {uids}: {stake_values}")
+        bt.logging.debug(f"Normalized stake rewards: {stake_rewards}")
+        
+        return stake_rewards
 
     def save_state(self):
         """Saves the state of the validator to a file."""

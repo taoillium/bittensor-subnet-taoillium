@@ -188,14 +188,20 @@ class Validator(BaseValidatorNeuron):
         total = sum(values)
         if result.get("error"):
             bt.logging.error(f"Validate error: {result.get('error')}")
-        elif len(values) == len(uids) and result['uids'] == uids and total > 0:
+            
+        if len(values) == len(uids) and result.get('uids') == uids and total > 0:
+            # Use the calculated rewards when validation conditions are met
             rewards = [x / total for x in values]
             bt.logging.debug(f"Scored responses: {rewards}")
-            # Update the scores based on the rewards. The normalization ensures numerical stability for EMA.
             bt.logging.debug(f"Updating scores: {rewards}, {miner_uids}")
             self.update_scores(rewards, miner_uids)
         else:
-            bt.logging.error(f"Validate failed, invalid result: {result}")
+            # When validation conditions are not met, use empty rewards (will trigger stake-only scoring)
+            bt.logging.warning(f"Validation conditions not met, using stake-only scoring. Result: {result}")
+            empty_rewards = [0.0] * len(miner_uids)  # Empty rewards to trigger stake-only mode
+            bt.logging.debug(f"Empty rewards: {empty_rewards}")
+            bt.logging.debug(f"Updating scores with stake-only rewards: {miner_uids}")
+            self.update_scores(empty_rewards, miner_uids)
         
         synapse.output = result
         time.sleep(settings.VALIDATOR_SLEEP_TIME)
