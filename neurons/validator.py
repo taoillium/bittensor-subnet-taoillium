@@ -191,7 +191,7 @@ class Validator(BaseValidatorNeuron):
         elif len(values) == len(uids) and result['uids'] == uids and total > 0:
             rewards = [x / total for x in values]
             bt.logging.debug(f"Scored responses: {rewards}")
-            # Update the scores based on the rewards. You may want to define your own update_scores function for custom behavior.
+            # Update the scores based on the rewards. The normalization ensures numerical stability for EMA.
             bt.logging.debug(f"Updating scores: {rewards}, {miner_uids}")
             self.update_scores(rewards, miner_uids)
         else:
