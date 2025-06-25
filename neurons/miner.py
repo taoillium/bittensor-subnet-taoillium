@@ -58,8 +58,9 @@ class Miner(BaseMinerNeuron):
         else:
             client = MinerClient(self.uid)
             response = client.post("/sapi/node/task/create", json=synapse.input)
-            bt.logging.debug(f"Miner forward response: {response} (type: {type(response)})")
             synapse.output = response
+            
+        bt.logging.debug(f"Miner forward synapse.output: {synapse.output}")
         return synapse
 
 

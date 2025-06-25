@@ -273,8 +273,6 @@ class BaseValidatorNeuron(BaseNeuron):
         ) = convert_weights_and_uids_for_emit(
             uids=processed_weight_uids, weights=processed_weights
         )
-        bt.logging.debug("uint_weights", uint_weights)
-        bt.logging.debug("uint_uids", uint_uids)
 
         # Set the weights on chain via our subtensor connection.
         result, msg = self.subtensor.set_weights(
@@ -288,7 +286,7 @@ class BaseValidatorNeuron(BaseNeuron):
         )
         # sync once, ensure get latest chain state
         self.metagraph.sync(subtensor=self.subtensor)
-        bt.logging.info(f"set_weights: my uid: {self.uid}, last_update: {self.metagraph.last_update[self.uid]}, block: {self.block}")
+        bt.logging.info(f"set_weights: my uid: {self.uid}, uids: {uint_uids}, weights: {uint_weights}, last_update: {self.metagraph.last_update[self.uid]}, block: {self.block}")
         if result is True:
             bt.logging.info("set_weights on chain successfully!")
         else:
@@ -378,6 +376,9 @@ class BaseValidatorNeuron(BaseNeuron):
         # Update scores with rewards produced by this step.
         # shape: [ metagraph.n ]
         alpha: float = self.config.neuron.moving_average_alpha
+        bt.logging.debug(f"update_scores alpha: {alpha}")
+        bt.logging.debug(f"update_scores scattered_rewards: {scattered_rewards}")
+        bt.logging.debug(f"update_scores old self.scores: {self.scores}")
         self.scores: np.ndarray = (
             alpha * scattered_rewards + (1 - alpha) * self.scores
         )

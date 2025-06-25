@@ -149,7 +149,7 @@ class Validator(BaseValidatorNeuron):
         # TODO(developer): Define how the validator selects a miner to query, how often, etc.
         # get_random_uids is an example method, but you can replace it with your own.
         miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
-        bt.logging.debug(f"Validator forward uids: {miner_uids}, validator uid: {self.uid}")
+       
         # Filter out validator's own uid and convert to Python int
         checked_uids = [int(uid) for uid in miner_uids if uid != self.uid]
         if not checked_uids:
@@ -158,6 +158,7 @@ class Validator(BaseValidatorNeuron):
             time.sleep(settings.VALIDATOR_SLEEP_TIME)
             return synapse
 
+        bt.logging.debug(f"Validator forward uids: {checked_uids}, validator uid: {self.uid}, synapse: {synapse}")
         # The dendrite client queries the network.
         responses = await self.dendrite(
             # Send the query to selected miner axons in the network.

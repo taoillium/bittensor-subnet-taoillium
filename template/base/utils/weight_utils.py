@@ -123,7 +123,7 @@ def convert_weights_and_uids_for_emit(
         # Filter zeros
         if uint16_val != 0:  # Filter zeros
             weight_vals.append(uint16_val)
-            weight_uids.append(uid_i)
+            weight_uids.append(int(uid_i))  # Convert numpy int to Python int
     bittensor.logging.debug(f"final params: {weight_uids} : {weight_vals}")
     return weight_uids, weight_vals
 

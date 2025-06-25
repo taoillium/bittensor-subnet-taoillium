@@ -2,14 +2,14 @@
 # Copyright © 2023 Yuma Rao
 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the “Software”), to deal in the Software without restriction, including without limitation
+# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
 # the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
 # and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
 # The above copyright notice and this permission notice shall be included in all copies or substantial portions of
 # the Software.
 
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
 # THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
@@ -109,6 +109,26 @@ class BaseNeuron(ABC):
         )
         self.step = 0
 
+        # Set epoch length from chain during initialization
+        self._set_epoch_length_from_chain()
+
+    def _set_epoch_length_from_chain(self):
+        """
+        Sets the epoch length from the chain using subtensor.tempo() during initialization.
+        Updates self.config.neuron.epoch_length with the chain value.
+        """
+        try:
+            chain_tempo = self.subtensor.tempo(netuid=self.config.netuid)
+            if chain_tempo is not None and chain_tempo <= self.config.neuron.epoch_length:
+                self.config.neuron.epoch_length = chain_tempo
+                bt.logging.info(f"Set epoch length from chain: {chain_tempo} blocks for netuid {self.config.netuid}")
+            elif chain_tempo is not None:
+                bt.logging.info(f"Chain tempo ({chain_tempo}) > config epoch_length ({self.config.neuron.epoch_length}), using config value for more frequent weight updates")
+            else:
+                bt.logging.warning(f"Could not retrieve tempo from chain for netuid {self.config.netuid}, using config default: {self.config.neuron.epoch_length}")
+        except Exception as e:
+            bt.logging.warning(f"Failed to query epoch length from chain: {e}, using config default: {self.config.neuron.epoch_length}")
+
     def set_subtensor(self):
         try:
             if (
@@ -173,13 +193,23 @@ class BaseNeuron(ABC):
             )
             exit()
 
+    def get_epoch_length(self) -> int:
+        """
+        Returns the epoch length in blocks.
+        This value is set during initialization from the chain.
+        
+        Returns:
+            int: The epoch length in blocks
+        """
+        return self.config.neuron.epoch_length
+
     def should_sync_metagraph(self):
         """
         Check if enough epoch blocks have elapsed since the last checkpoint to sync.
         """
         return (
             self.block - self.metagraph.last_update[self.uid]
-        ) > self.config.neuron.epoch_length
+        ) > self.get_epoch_length()
 
     def should_set_weights(self) -> bool:
         # Don't set weights on initialization.
@@ -193,7 +223,7 @@ class BaseNeuron(ABC):
         # Define appropriate logic for when set weights.
         return (
             (self.block - self.metagraph.last_update[self.uid])
-            > self.config.neuron.epoch_length
+            > self.get_epoch_length()
             and self.neuron_type != "MinerNeuron"
         )  # don't set weights if you're a miner
 
