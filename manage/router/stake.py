@@ -6,6 +6,7 @@ import pexpect
 from pydantic import BaseModel
 import re
 import logging
+from services.cli import stake_add
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/stake", tags=["stake"])
@@ -48,43 +49,4 @@ def get_wallet_overview():
 
 
 def stake_amount(amount):
-    try:
-        cmd = [
-            "btcli", "stake", "add",
-            "--wallet.name", settings.VALIDATOR_WALLET,
-            "--wallet.hotkey", settings.VALIDATOR_HOTKEY,
-            "--subtensor.chain_endpoint", settings.CHAIN_ENDPOINT,
-            "--amount", str(amount),
-            "--netuid", str(settings.CHAIN_NETUID),
-            "--json-output"
-        ]
-
-        logger.debug(f"cmd: {' '.join(cmd)}")
-        child = pexpect.spawn(" ".join(cmd), encoding="utf-8")
-        child.expect('Would you like to continue?')
-        child.sendline('y')
-        child.expect('Enter your password:')
-        child.sendline(settings.VALIDATOR_PASSWORD)
-        child.expect(pexpect.EOF, timeout=60)
-        output = child.before
-        child.close()
-
-        output = remove_ansi_escape(output)
-        logger.debug(f"stake result: {output}")
-
-        # use regex to extract the first complete {...} JSON block (supports multiple lines)
-        json_match = re.search(r'(\{[\s\S]*\})', output)
-        if json_match:
-            json_str = json_match.group(1)
-            try:
-                return json.loads(json_str)
-            except Exception as e:
-                logger.error(f"JSON decode failed: {e}")
-                return {"error": "Invalid JSON output", "json_str": json_str}
-        # if no JSON output found
-        return {"error": "No JSON output found", "output": output}
-
-    except Exception as e:
-        logger.error(f"stake failed: {e}")
-        error_msg = str(e).split('\n')[0]
-        return {"error": error_msg}
+    return stake_add(settings.VALIDATOR_WALLET, settings.VALIDATOR_HOTKEY, amount, settings.CHAIN_NETUID, settings.VALIDATOR_PASSWORD, settings.CHAIN_ENDPOINT, settings.CHAIN_NETWORK)
