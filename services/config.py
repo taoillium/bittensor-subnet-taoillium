@@ -22,13 +22,19 @@ class Settings(BaseSettings):
     VALIDATOR_WALLET: str = os.getenv("VALIDATOR_WALLET", "validator")
     VALIDATOR_HOTKEY: str = os.getenv("VALIDATOR_HOTKEY", "default")
     VALIDATOR_PASSWORD: str = os.getenv("VALIDATOR_PASSWORD", "")
+    
+    CHAIN_NETUID: int = int(os.getenv("CHAIN_NETUID", "1"))
+
+    VALIDATOR_SLEEP_TIME: int = int(os.getenv("VALIDATOR_SLEEP_TIME", "1"))
+
+    # Manager service configuration
     MANAGER_HOST: str = os.getenv("MANAGER_HOST", "127.0.0.1")
     MANAGER_PORT: int = int(os.getenv("MANAGER_PORT", "8000"))
     MANAGER_DEBUG: str = os.getenv("MANAGER_DEBUG", "INFO").upper()
     MANAGER_RELOAD: bool = os.getenv("MANAGER_RELOAD", "false").lower() == "true"
-    CHAIN_NETUID: int = int(os.getenv("CHAIN_NETUID", "1"))
-
-    VALIDATOR_SLEEP_TIME: int = int(os.getenv("VALIDATOR_SLEEP_TIME", "1"))
+    MANAGER_JWT_SECRET_KEY: str = os.getenv("MANAGER_JWT_SECRET_KEY", "your-secret-api-key")
+    MANAGER_JWT_EXPIRE_IN: int = int(os.getenv("MANAGER_JWT_EXPIRE_IN", "30"))
+    MANAGER_JWT_ALGORITHM: str = os.getenv("MANAGER_JWT_ALGORITHM", "HS256")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

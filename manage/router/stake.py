@@ -2,7 +2,6 @@ import subprocess
 import json
 from services.config import settings
 from fastapi import APIRouter, Depends, HTTPException, Query
-import pexpect
 from pydantic import BaseModel
 import re
 import logging

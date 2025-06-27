@@ -23,9 +23,13 @@ import asyncio
 import argparse
 import threading
 import bittensor as bt
+import time
+import traceback
+import requests
+import json
+import os
 
 from typing import List, Union
-from traceback import print_exception
 from abc import ABC, abstractmethod
 
 from template.base.neuron import BaseNeuron
@@ -35,6 +39,7 @@ from template.base.utils.weight_utils import (
 )  # TODO: Replace when bittensor switches to numpy
 from template.mock import MockDendrite
 from template.utils.config import add_validator_args
+from template.utils.misc import ttl_get_block
 
 
 class BaseValidatorNeuron(BaseNeuron):
@@ -122,6 +127,10 @@ class BaseValidatorNeuron(BaseNeuron):
 
     @abstractmethod
     async def concurrent_forward(self):
+        """
+        The forward function is called by the validator every time step.
+        It is responsible for querying the network and scoring the responses.
+        """
         ...
 
     def run(self):
@@ -166,18 +175,18 @@ class BaseValidatorNeuron(BaseNeuron):
 
                 self.step += 1
 
-        # If someone intentionally stops the validator, it'll safely terminate operations.
+        # If someone intentionally stops the validator, it'll safely terminate.
         except KeyboardInterrupt:
-            self.axon.stop()
-            bt.logging.success("Validator killed by keyboard interrupt.")
-            exit()
+            bt.logging.info("Validator interrupted by keyboard.")
+            self.should_exit = True
 
         # In case of unforeseen errors, the validator will log the error and continue operations.
-        except Exception as err:
-            bt.logging.error(f"Error during validation: {str(err)}")
-            bt.logging.debug(
-                str(print_exception(type(err), err, err.__traceback__))
-            )
+        except Exception as e:
+            bt.logging.error(f"Validator error: {e}")
+            bt.logging.debug(f"Validator traceback: {traceback.format_exc()}")
+
+        # Always save state before exiting.
+        self.save_state()
 
     def run_in_background_thread(self):
         """

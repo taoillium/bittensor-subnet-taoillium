@@ -33,7 +33,7 @@ from template.validator.reward import get_rewards
 from template.utils.uids import get_random_uids
 import services.protocol as protocol
 from services.config import settings
-from services.security import verify_token
+from services.security import verify_srv_token
 from services.api import ValidatorClient
 
 
@@ -65,7 +65,7 @@ class Validator(BaseValidatorNeuron):
         @app.post("/task/receive")
         async def receive(request: Request):
             token = request.headers.get("Authorization", "")
-            if not verify_token(token):
+            if not verify_srv_token(token):
                 return {"error": "Unauthorized"}
             
             data = await request.json()
@@ -81,7 +81,7 @@ class Validator(BaseValidatorNeuron):
         @app.post("/stake/add")
         async def stake_add(request: Request):
             token = request.headers.get("Authorization", "")
-            if not verify_token(token):
+            if not verify_srv_token(token):
                 return {"error": "Unauthorized"}
             data = await request.json()
             amount = data.get("amount")

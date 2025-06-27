@@ -1,7 +1,7 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from services.security import verify_token
+from services.security import verify_manage_token
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not token:
             return JSONResponse(status_code=401, content={"error": "Missing or invalid token"})
         
-        user = verify_token(token)
+        user = verify_manage_token(token)
         if not user:
             return JSONResponse(status_code=401, content={"error": "Invalid token"})
         

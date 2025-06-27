@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from services.config import settings
-from manage.router import stake
+from manage.router import stake, wallet
 from manage.middlewares.auth import AuthMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import HTTPBearer
@@ -29,6 +29,7 @@ app.add_middleware(AuthMiddleware)
 
 # Include routers
 app.include_router(stake.router)
+app.include_router(wallet.router)
 
 def custom_openapi():
     if app.openapi_schema:

@@ -1,6 +1,6 @@
 import requests
 from .config import settings
-from .security import create_access_token
+from .security import create_srv_access_token
 
 import socket
 
@@ -51,11 +51,11 @@ class HttpClient:
 class MinerClient(HttpClient):
     def __init__(self, uid, timeout=10):
         ip = get_local_ip()
-        token = create_access_token(data={"id": uid, "sn": f"{ip}:{uid}", "name": "miner", "providerId": "bittensor", "roles": ["node-manage"], "_admin": "admin"})
+        token = create_srv_access_token(data={"id": uid, "sn": f"{ip}:{uid}", "name": "miner", "providerId": "bittensor", "roles": ["node-manage"], "_admin": "admin"})
         super().__init__(settings.SRV_API_URL, timeout, authorization=f"Bearer {token}")
 
 class ValidatorClient(HttpClient):
     def __init__(self, uid, timeout=10):
         ip = get_local_ip()
-        token = create_access_token(data={"id": uid, "sn": f"{ip}:{uid}", "name": "validator", "providerId": "bittensor", "roles": ["node-manage"], "_admin": "admin"})
+        token = create_srv_access_token(data={"id": uid, "sn": f"{ip}:{uid}", "name": "validator", "providerId": "bittensor", "roles": ["node-manage"], "_admin": "admin"})
         super().__init__(settings.SRV_API_URL, timeout, authorization=f"Bearer {token}")
