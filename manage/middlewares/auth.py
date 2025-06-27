@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in ["/docs", "/openapi.json", "/"]:
+        if request.url.path in ["/docs", "/openapi.json", "/", "/health"]:
             return await call_next(request)
         token = request.headers.get("Authorization")
         if token and token.startswith("Bearer "):
