@@ -2,7 +2,10 @@ from dotenv import load_dotenv
 import os
 from pydantic_settings import BaseSettings
 
-load_dotenv()
+# Get the project root directory (parent of services directory)
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+env_file_path = os.path.join(project_root, ".env")
+load_dotenv(env_file_path, override=True)
 
 
 class Settings(BaseSettings):

@@ -28,7 +28,6 @@ def main():
     parser.add_argument('--chain-endpoint', required=False, help='Chain endpoint')
     
     args = parser.parse_args()
-    print("args: ", args)
     
     try:
         result = stake_add(
