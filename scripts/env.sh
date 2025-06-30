@@ -3,7 +3,7 @@ CURRENT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "$CURRENT_DIR"
 cd $CURRENT_DIR/../
 
-if [ -z "$VIRTUAL_ENV" ]; then
+if [ -z "$VIRTUAL_ENV" -a ! -f /.dockerenv ]; then
     if [ -d "venv" ]; then
         source venv/bin/activate
     elif [ -d ".venv" ]; then
@@ -22,18 +22,6 @@ if [ -z "$VIRTUAL_ENV" ]; then
     fi
 fi
 
-# Install btcli
-if ! command -v btcli &> /dev/null; then
-    echo "Installing btcli..."
-    if which uv > /dev/null; then
-        uv pip install -U bittensor-cli
-    else
-        python -m pip install -U bittensor-cli
-    fi
-else
-    echo "btcli already installed"
-fi
-
 # read env variables from .env file
 if [ -f "${CURRENT_DIR}/../.env" ]; then
     source "${CURRENT_DIR}/../.env"
@@ -43,6 +31,9 @@ fi
 
 network=${CHAIN_NETWORK:-local}
 default_chain_endpoint=ws://127.0.0.1:9944
+if [ -f /.dockerenv ]; then
+    default_chain_endpoint="ws://host.docker.internal:9944"
+fi
 if [ "$network" == "finney" ]; then
     default_chain_endpoint=wss://entrypoint-finney.opentensor.ai
 elif [ "$network" == "test" ]; then
@@ -61,9 +52,9 @@ echo "http_endpoint: $http_endpoint"
 ## check localnet
 # next steps need to check if the localnet is running
 if [ "$network" == "local" ]; then
-    curl --silent --fail --max-time 2 $http_endpoint
+    curl --silent --max-time 2 $http_endpoint > /dev/null 2>&1
     rc=$?
-    if [ $rc -eq 7 ]; then
+    if [ $rc -ne 0 ]; then
         echo "Error: $http_endpoint is not running, please start the local chain (subtensor localnet)"
         echo "Please run the following command to start the local chain:"
         echo "cd ../subtensor && BUILD_BINARY=1 ./scripts/localnet.sh --no-purge"

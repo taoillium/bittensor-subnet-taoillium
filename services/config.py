@@ -10,7 +10,7 @@ load_dotenv(env_file_path, override=True)
 
 class Settings(BaseSettings):
     VALIDATOR_HOST: str = os.getenv("VALIDATOR_HOST", "127.0.0.1")
-    VALIDATOR_PORT: int = int(os.getenv("VALIDATOR_PORT", "8080"))
+    VALIDATOR_API_PORT: int = int(os.getenv("VALIDATOR_API_PORT", "8080"))
     DETECT_IP: str = os.getenv("DETECT_IP", "8.8.8.8")
     SRV_API_URL: str = os.getenv("SRV_API_URL")
     SRV_API_JWT_SECRET_KEY: str = os.getenv("SRV_API_JWT_SECRET_KEY")
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     VALIDATOR_SLEEP_TIME: int = int(os.getenv("VALIDATOR_SLEEP_TIME", "1"))
 
     # Manager service configuration
-    MANAGER_HOST: str = os.getenv("MANAGER_HOST", "127.0.0.1")
+    MANAGER_HOST: str = os.getenv("MANAGER_HOST", "0.0.0.0")
     MANAGER_PORT: int = int(os.getenv("MANAGER_PORT", "8000"))
     MANAGER_DEBUG: str = os.getenv("MANAGER_DEBUG", "INFO").upper()
     MANAGER_RELOAD: bool = os.getenv("MANAGER_RELOAD", "false").lower() == "true"

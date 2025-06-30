@@ -1,0 +1,25 @@
+services:
+  # Manager service - can be deployed on a dedicated server
+  bst-manager:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        - SERVICE_TYPE=manager
+    image: bst-manager:${MANAGER_VERSION:-latest}
+    container_name: bst-manager-${MANAGER_PORT:-8000}
+    ports:
+      - "${MANAGER_PORT:-8000}:${MANAGER_PORT:-8000}"
+    volumes:
+      - ../.env:/app/.env
+      - ~/.bittensor:/root/.bittensor
+      - ./logs:/app/logs
+    environment:
+      - MANAGER_PORT=${MANAGER_PORT:-8000}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${MANAGER_PORT:-8000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

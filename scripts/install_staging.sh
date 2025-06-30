@@ -9,6 +9,18 @@ fi
 
 trap 'echo "\nScript interrupted, exiting..."; exit 1' INT
 
+# Install btcli
+if ! command -v btcli &> /dev/null; then
+    echo "Installing btcli..."
+    if which uv > /dev/null; then
+        uv pip install -U bittensor-cli
+    else
+        python -m pip install -U bittensor-cli
+    fi
+else
+    echo "btcli already installed"
+fi
+
 # Test/Run
 # This section is for running and testing the setup.
 

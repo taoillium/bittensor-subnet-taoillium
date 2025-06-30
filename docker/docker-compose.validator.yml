@@ -1,0 +1,24 @@
+services:
+  # Validator service - can be deployed on a dedicated server
+  bst-validator:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        - SERVICE_TYPE=validator
+    image: bst-validator:${VALIDATOR_VERSION:-latest}
+    container_name: bst-validator-${VALIDATOR_NAME:-default}
+    ports:
+      - "${VALIDATOR_PORT:-8092}:${VALIDATOR_PORT:-8092}"
+      - "${VALIDATOR_API_PORT:-8080}:${VALIDATOR_API_PORT:-8080}"
+    volumes:
+      - ../.env:/app/.env
+      - ~/.bittensor:/root/.bittensor
+      - ./logs:/app/logs
+    environment:
+      - VALIDATOR_PORT=${VALIDATOR_PORT:-8092}
+      - VALIDATOR_API_PORT=${VALIDATOR_API_PORT:-8080}
+      - BT_SUBTENSOR_CHAIN_ENDPOINT=ws://host.docker.internal:9944
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped 

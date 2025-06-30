@@ -1,0 +1,22 @@
+services:
+  # Miner service - can be deployed on a dedicated server
+  bst-miner:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        - SERVICE_TYPE=miner
+    image: bst-miner:${MINER_VERSION:-latest}
+    container_name: bst-miner-${MINER_NAME:-default}
+    ports:
+      - "${MINER_PORT:-8091}:${MINER_PORT:-8091}"
+    volumes:
+      - ../.env:/app/.env
+      - ~/.bittensor:/root/.bittensor
+      - ./logs:/app/logs
+    environment:
+      - MINER_PORT=${MINER_PORT:-8091}
+      - BT_SUBTENSOR_CHAIN_ENDPOINT=ws://host.docker.internal:9944
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped 

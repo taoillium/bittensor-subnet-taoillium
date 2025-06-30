@@ -63,9 +63,9 @@ with codecs.open(
     version_string = version_match.group(1)
 
 setup(
-    name="bittensor_subnet_template",  # TODO(developer): Change this value to your module subnet name.
+    name="bittensor_subnet_taoillium",  # TODO(developer): Change this value to your module subnet name.
     version=version_string,
-    description="bittensor_subnet_template",  # TODO(developer): Change this value to your module subnet description.
+    description="bittensor_subnet_taoillium",  # TODO(developer): Change this value to your module subnet description.
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/opentensor/bittensor-subnet-template",  # TODO(developer): Change this url to your module subnet github url.

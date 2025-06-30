@@ -98,12 +98,13 @@ class Validator(BaseValidatorNeuron):
             return responses
 
         def run():
-            uvicorn.run(app, host=settings.VALIDATOR_HOST, port=settings.VALIDATOR_PORT, log_level="info")
+            # Add debug information
+            uvicorn.run(app, host=settings.VALIDATOR_HOST, port=settings.VALIDATOR_API_PORT, log_level="info")
 
         self.http_app = app
         self.http_thread = threading.Thread(target=run, daemon=True)
         self.http_thread.start()
-        bt.logging.info(f"HTTP server started on port {settings.VALIDATOR_PORT}")
+        bt.logging.info(f"HTTP server started on host: {settings.VALIDATOR_HOST}, port {settings.VALIDATOR_API_PORT}")
 
     async def stake_add(self, amount):
         result = self.subtensor.add_stake(
