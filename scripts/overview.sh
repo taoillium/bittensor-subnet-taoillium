@@ -4,7 +4,7 @@ source "${CURRENT_DIR}/env.sh"
 
 # Ensure both the miner and validator keys are successfully registered.
 #echo "Listing subnets"
-#btcli subnet list --subtensor.chain_endpoint ${chain_endpoint}
+btcli subnet show  --netuid $netuid --subtensor.chain_endpoint ${chain_endpoint}
 
 echo "Checking owner wallet"
 btcli wallet overview --wallet.name owner --subtensor.chain_endpoint ${chain_endpoint}
