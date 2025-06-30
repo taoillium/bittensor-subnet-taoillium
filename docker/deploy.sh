@@ -1,0 +1,55 @@
+#!/bin/bash
+cd "$(dirname "$0")"
+echo "pwd: $(pwd)"
+action=${2:-""}
+
+deploy_manager() {
+    check_image_result=$(./docker-manage.sh check)
+
+    # if docker image not found or force-build action, build docker image
+    if [ "$check_image_result" == "" -o "$action" == "force-build" ]; then
+        echo "docker image build..."
+        ./docker-manage.sh build
+    fi
+
+    ./docker-manage.sh run
+}
+
+deploy_miner() {    
+    check_image_result=$(./docker-miner.sh check)
+
+    # if docker image not found or force-build action, build docker image
+    if [ "$check_image_result" == "" -o "$action" == "force-build" ]; then
+        echo "docker image build..."
+        ./docker-miner.sh build
+    fi
+
+    ./docker-miner.sh run
+}
+
+deploy_validator() {
+    check_image_result=$(./docker-validator.sh check)
+
+    # if docker image not found or force-build action, build docker image
+    if [ "$check_image_result" == "" -o "$action" == "force-build" ]; then
+        echo "docker image build..."
+        ./docker-validator.sh build
+    fi
+
+    ./docker-validator.sh run
+}
+
+case $1 in
+    manager)
+        deploy_manager
+        ;;
+    miner)
+        deploy_miner
+        ;;
+    validator)
+        deploy_validator
+        ;;
+    *)
+        echo "Usage: $0 {manager|miner|validator}"
+        exit 1
+esac 

@@ -1,11 +1,11 @@
 #!/bin/bash
 CURRENT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd $CURRENT_DIR
+cd $CURRENT_DIR/../
 
 SERVICE_TYPE="manager"
 VERSION=0.0.1
 
-if [ ! -f "../.env" ]; then
+if [ ! -f "./.env" ]; then
     echo "please create .env file"
     exit 1
 fi
@@ -13,25 +13,25 @@ fi
 
 # set version for manager service
 # if .env file exists MANAGER_VERSION, update it
-if grep -q "MANAGER_VERSION=" ../.env; then
-    sed -i '' "s/MANAGER_VERSION=.*/MANAGER_VERSION=$VERSION/" ../.env
+if grep -q "MANAGER_VERSION=" ./.env; then
+    sed -i '' "s/MANAGER_VERSION=.*/MANAGER_VERSION=$VERSION/" ./.env
 else
     # if not exists, add to file end
-    echo "" >> ../.env
-    echo "MANAGER_VERSION=$VERSION" >> ../.env
+    echo "" >> ./.env
+    echo "MANAGER_VERSION=$VERSION" >> ./.env
 fi
 
 # if .env file exists MANAGER_PORT, update it
-if grep -q "MANAGER_PORT=" ../.env; then
+if grep -q "MANAGER_PORT=" ./.env; then
     # keep existing value
     echo "MANAGER_PORT already exists in .env"
 else
     # if not exists, add to file end
-    echo "" >> ../.env
-    echo "MANAGER_PORT=8000" >> ../.env
+    echo "" >> ./.env
+    echo "MANAGER_PORT=8000" >> ./.env
 fi
 
-source ../.env
+source ./.env
 
 docker_image="bst-manager:${MANAGER_VERSION:-latest}"
 
