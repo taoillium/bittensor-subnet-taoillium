@@ -33,7 +33,7 @@ from template.validator.reward import get_rewards
 from template.utils.uids import get_random_uids
 import services.protocol as protocol
 from services.config import settings
-from services.security import verify_srv_token
+from services.security import verify_srv_token,create_neuron_access_token
 from services.api import ValidatorClient
 
 
@@ -55,7 +55,15 @@ class Validator(BaseValidatorNeuron):
         self.http_app = None
         
         self.start_http_server()
-        # TODO(developer): Anything specific to your use case you can do here
+
+    def register_with_business_server(self):
+        """Register this neuron with the business server to establish authentication"""
+        self.token = create_neuron_access_token(data={"id": self.uid, "name": "validator", "providerId": "bittensor"})
+        client = ValidatorClient()
+        result = client.post("/sapi/node/neuron/register", json={"uid": self.uid, "token": self.token})
+        bt.logging.info(f"Register with business server result: {result}")
+        # Store registration time for token refresh tracking
+        self.last_token_refresh = time.time()
 
     def start_http_server(self):
         """start FastAPI HTTP server"""
@@ -77,25 +85,6 @@ class Validator(BaseValidatorNeuron):
             )
             responses = future.result()
             return responses
-        
-        @app.post("/stake/add")
-        async def stake_add(request: Request):
-            token = request.headers.get("Authorization", "")
-            if not verify_srv_token(token):
-                return {"error": "Unauthorized"}
-            data = await request.json()
-            amount = data.get("amount")
-            try:
-                amount = float(amount)
-                if amount <= 0:
-                    return {"error": "Amount must be greater than 0"}
-            except (TypeError, ValueError):
-                return {"error": "Amount must be a valid number"}
-            future = asyncio.run_coroutine_threadsafe(
-                validator_self.stake_add(amount), validator_self.loop
-            )
-            responses = future.result()
-            return responses
 
         def run():
             # Add debug information
@@ -105,19 +94,6 @@ class Validator(BaseValidatorNeuron):
         self.http_thread = threading.Thread(target=run, daemon=True)
         self.http_thread.start()
         bt.logging.info(f"HTTP server started on host: {settings.VALIDATOR_HOST}, port {settings.VALIDATOR_API_PORT}")
-
-    async def stake_add(self, amount):
-        result = self.subtensor.add_stake(
-            wallet=self.wallet,
-            netuid=self.config.netuid,
-            amount=amount,
-            wait_for_finalization=True
-        )
-        bt.logging.info(f"Stake add result: {result}")
-        return {
-            "success": result,
-            "message": None if result else "Stake failed, see logs for details."
-        }
 
     async def forward_with_input(self, user_input):
         miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
@@ -177,7 +153,7 @@ class Validator(BaseValidatorNeuron):
         uids = checked_uids  # Already converted to Python int
         uids.append(self.uid)
 
-        client = ValidatorClient(self.uid)
+        client = ValidatorClient()
         # Log the results for monitoring purposes.
         data = {"uids": uids, "uid": int(self.uid), "responses": responses}
         bt.logging.debug(
@@ -215,6 +191,28 @@ class Validator(BaseValidatorNeuron):
             for _ in range(self.config.neuron.num_concurrent_forwards)
         ]
         await asyncio.gather(*coroutines)
+
+    def sync(self):
+        """
+        Wrapper for synchronizing the state of the network for the given validator.
+        Includes business server token refresh.
+        """
+        self.set_subtensor()
+
+        # Ensure validator hotkey is still registered on the network.
+        self.check_registered()
+
+        # Refresh business server token if needed
+        self.refresh_business_server_token()
+
+        if self.should_sync_metagraph():
+            self.resync_metagraph()
+
+        if self.should_set_weights():
+            self.set_weights()
+
+        # Always save state.
+        self.save_state()
 
 
 # The main function parses the configuration and runs the validator.

@@ -5,7 +5,7 @@ import jwt
 from services.config import settings
 
 
-def create_srv_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_neuron_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a new JWT access token.
     
     Args:
@@ -19,9 +19,9 @@ def create_srv_access_token(data: dict, expires_delta: Optional[timedelta] = Non
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.SRV_API_JWT_EXPIRE_IN)
+        expire = datetime.utcnow() + timedelta(minutes=settings.NEURON_JWT_EXPIRE_IN)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SRV_API_JWT_SECRET_KEY, algorithm=settings.SRV_API_JWT_ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.NEURON_JWT_SECRET_KEY, algorithm=settings.NEURON_JWT_ALGORITHM)
     return encoded_jwt
 
 def verify_srv_token(token: str) -> Optional[dict]:
@@ -36,7 +36,7 @@ def verify_srv_token(token: str) -> Optional[dict]:
     try:
         if token.startswith("Bearer "):
             token = token[7:]
-        payload = jwt.decode(token, settings.SRV_API_JWT_SECRET_KEY, algorithms=[settings.SRV_API_JWT_ALGORITHM])
+        payload = jwt.decode(token, settings.NEURON_JWT_SECRET_KEY, algorithms=[settings.NEURON_JWT_ALGORITHM])
         return payload
     except Exception as e:
         print(f"Error verifying token: {e}")

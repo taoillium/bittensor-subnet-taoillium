@@ -13,9 +13,11 @@ class Settings(BaseSettings):
     VALIDATOR_API_PORT: int = int(os.getenv("VALIDATOR_API_PORT", "8080"))
     DETECT_IP: str = os.getenv("DETECT_IP", "8.8.8.8")
     SRV_API_URL: str = os.getenv("SRV_API_URL")
-    SRV_API_JWT_SECRET_KEY: str = os.getenv("SRV_API_JWT_SECRET_KEY")
-    SRV_API_JWT_EXPIRE_IN: int = int(os.getenv("SRV_API_JWT_EXPIRE_IN", "30"))
-    SRV_API_JWT_ALGORITHM: str = os.getenv("SRV_API_JWT_ALGORITHM", "HS256")
+    SRV_API_KEY: str = os.getenv("SRV_API_KEY")
+
+    NEURON_JWT_SECRET_KEY: str = os.getenv("NEURON_JWT_SECRET_KEY")
+    NEURON_JWT_EXPIRE_IN: int = int(os.getenv("NEURON_JWT_EXPIRE_IN", "30"))
+    NEURON_JWT_ALGORITHM: str = os.getenv("NEURON_JWT_ALGORITHM", "HS256")
 
     CHAIN_NETWORK: str = os.getenv("CHAIN_NETWORK", "local")
     CHAIN_ENDPOINT: str = os.getenv("CHAIN_ENDPOINT", "")

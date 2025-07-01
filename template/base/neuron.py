@@ -17,7 +17,7 @@
 
 import copy
 import typing
-
+import time
 import bittensor as bt
 
 from abc import ABC, abstractmethod
@@ -28,6 +28,7 @@ from template.utils.misc import ttl_get_block
 from template import __spec_version__ as spec_version
 from template.mock import MockSubtensor, MockMetagraph
 from websockets.protocol import State as WebSocketClientState
+from services.config import settings
 
 
 class BaseNeuron(ABC):
@@ -109,6 +110,8 @@ class BaseNeuron(ABC):
         )
         self.step = 0
 
+        self.last_token_refresh = 0
+
         # Set epoch length from chain during initialization
         self._set_epoch_length_from_chain()
 
@@ -160,6 +163,10 @@ class BaseNeuron(ABC):
         ...
 
     @abstractmethod
+    def register_with_business_server(self):
+        ...
+
+    @abstractmethod
     def run(self):
         ...
 
@@ -180,6 +187,25 @@ class BaseNeuron(ABC):
 
         # Always save state.
         self.save_state()
+
+        # Refresh business server token if needed
+        self.refresh_business_server_token()
+
+    
+    def should_refresh_token(self) -> bool:
+        """Check if the business server token needs to be refreshed"""
+        
+        # Refresh token 5 minutes before expiration (30 - 5 = 25 minutes)
+        token_refresh_interval = (settings.NEURON_JWT_EXPIRE_IN - 5) * 60  # Convert to seconds
+        return (time.time() - self.last_token_refresh) > token_refresh_interval
+
+    def refresh_business_server_token(self):
+        """Refresh the business server token to maintain authentication"""
+        if self.should_refresh_token():
+            bt.logging.info("Refreshing business server token")
+            self.register_with_business_server()
+        else:
+            bt.logging.debug("Token still valid, no refresh needed")
 
     def check_registered(self):
         # --- Check for registration.

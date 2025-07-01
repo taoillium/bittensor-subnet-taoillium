@@ -1,8 +1,10 @@
 import requests
 from .config import settings
-from .security import create_srv_access_token
-
 import socket
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -43,19 +45,20 @@ class HttpClient:
         try:
             response = requests.post(url, data=data, json=json, headers=merged_headers, timeout=self.timeout)
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            if data and data.get("nodeToken"):
+                settings.SRV_API_KEY = data.get("nodeToken").get("access_token")
+            return data
         except Exception as e:
             return {"error": str(e)}
 
 
 class MinerClient(HttpClient):
-    def __init__(self, uid, timeout=10):
-        ip = get_local_ip()
-        token = create_srv_access_token(data={"id": uid, "sn": f"{ip}:{uid}", "name": "miner", "providerId": "bittensor", "roles": ["node-manage"], "_admin": "admin"})
+    def __init__(self, timeout=10):
+        token = settings.SRV_API_KEY
         super().__init__(settings.SRV_API_URL, timeout, authorization=f"Bearer {token}")
 
 class ValidatorClient(HttpClient):
-    def __init__(self, uid, timeout=10):
-        ip = get_local_ip()
-        token = create_srv_access_token(data={"id": uid, "sn": f"{ip}:{uid}", "name": "validator", "providerId": "bittensor", "roles": ["node-manage"], "_admin": "admin"})
+    def __init__(self, timeout=10):
+        token = settings.SRV_API_KEY
         super().__init__(settings.SRV_API_URL, timeout, authorization=f"Bearer {token}")
