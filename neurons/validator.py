@@ -33,7 +33,7 @@ from template.validator.reward import get_rewards
 from template.utils.uids import get_random_uids
 import services.protocol as protocol
 from services.config import settings
-from services.security import verify_srv_token,create_neuron_access_token
+from services.security import verify_neuron_token,create_neuron_access_token
 from services.api import ValidatorClient
 
 
@@ -58,9 +58,10 @@ class Validator(BaseValidatorNeuron):
 
     def register_with_business_server(self):
         """Register this neuron with the business server to establish authentication"""
-        self.token = create_neuron_access_token(data={"id": self.uid, "name": "validator", "providerId": "bittensor"})
+        data = {"uid": self.uid, "chain": "bittensor", "netuid": self.config.netuid, "type": "validator", "account": self.wallet.hotkey.ss58_address}
+        data["token"] = create_neuron_access_token(data=data)
         client = ValidatorClient()
-        result = client.post("/sapi/node/neuron/register", json={"uid": self.uid, "token": self.token})
+        result = client.post("/sapi/node/neuron/register", json=data)
         bt.logging.info(f"Register with business server result: {result}")
         # Store registration time for token refresh tracking
         self.last_token_refresh = time.time()
@@ -73,7 +74,7 @@ class Validator(BaseValidatorNeuron):
         @app.post("/task/receive")
         async def receive(request: Request):
             token = request.headers.get("Authorization", "")
-            if not verify_srv_token(token):
+            if not verify_neuron_token(token):
                 return {"error": "Unauthorized"}
             
             data = await request.json()
@@ -155,7 +156,7 @@ class Validator(BaseValidatorNeuron):
 
         client = ValidatorClient()
         # Log the results for monitoring purposes.
-        data = {"uids": uids, "uid": int(self.uid), "responses": responses}
+        data = {"uids": uids, "responses": responses, "chain": "bittensor", "uid": int(self.uid), "netuid": self.config.netuid}
         bt.logging.debug(
             f"request node/task/validate: {data}"
         )

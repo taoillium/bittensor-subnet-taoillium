@@ -40,9 +40,10 @@ class Miner(BaseMinerNeuron):
 
     def register_with_business_server(self):
         """Register this neuron with the business server to establish authentication"""
-        self.token = create_neuron_access_token(data={"id": self.uid, "name": "miner", "providerId": "bittensor"})
+        data = {"uid": self.uid, "chain": "bittensor", "netuid": self.config.netuid, "type": "miner", "account": self.wallet.hotkey.ss58_address}
+        data["token"] = create_neuron_access_token(data=data)
         client = MinerClient()
-        result = client.post("/sapi/node/neuron/register", json={"uid": self.uid, "token": self.token})
+        result = client.post("/sapi/node/neuron/register", json=data)
         bt.logging.info(f"Register with business server result: {result}")
         # Store registration time for token refresh tracking
         self.last_token_refresh = time.time()

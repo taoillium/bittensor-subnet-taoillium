@@ -95,6 +95,8 @@ class BaseNeuron(ABC):
             self.metagraph = self.subtensor.metagraph(self.config.netuid)
 
         bt.logging.info(f"Wallet: {self.wallet}")
+        # bt.logging.info(f"Coldkey Address: {self.wallet.coldkey.ss58_address}")
+        bt.logging.info(f"Hotkey Address: {self.wallet.hotkey.ss58_address}")
         bt.logging.info(f"Subtensor: {self.subtensor}")
         bt.logging.info(f"Metagraph: {self.metagraph}")
 

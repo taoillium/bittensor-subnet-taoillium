@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 import jwt
-
+import time
 from services.config import settings
 
 
@@ -20,11 +20,13 @@ def create_neuron_access_token(data: dict, expires_delta: Optional[timedelta] = 
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.NEURON_JWT_EXPIRE_IN)
+    to_encode.update({"salt": time.time()})
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.NEURON_JWT_SECRET_KEY, algorithm=settings.NEURON_JWT_ALGORITHM)
-    return encoded_jwt
+    token = verify_neuron_token(encoded_jwt)
+    return {"token": encoded_jwt, "exp": token.get("exp")}
 
-def verify_srv_token(token: str) -> Optional[dict]:
+def verify_neuron_token(token: str) -> Optional[dict]:
     """Verify a JWT token.
     
     Args:
