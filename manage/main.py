@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from services.config import settings
-from manage.router import stake, wallet
+from manage.router import wallet, subnet
 from manage.middlewares.auth import AuthMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.security import HTTPBearer
@@ -28,8 +28,8 @@ app.add_middleware(
 app.add_middleware(AuthMiddleware)
 
 # Include routers
-app.include_router(stake.router)
 app.include_router(wallet.router)
+app.include_router(subnet.router)
 
 def custom_openapi():
     if app.openapi_schema:
@@ -69,10 +69,41 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "manage.main:app",
-        host=settings.MANAGER_HOST,
-        port=settings.MANAGER_PORT,
-        log_level=settings.MANAGER_DEBUG.lower(),
-        reload=settings.MANAGER_RELOAD
-    ) 
+    
+    # Enhanced startup information
+    print("=" * 60)
+    print("🚀 Starting Unified Taoillium Server")
+    print("=" * 60)
+    print(f"📍 Host: {settings.MANAGER_HOST}")
+    print(f"🔌 Port: {settings.MANAGER_PORT}")
+    print(f"🐛 Debug Level: {settings.MANAGER_DEBUG}")
+    print(f"🔄 Auto Reload: {settings.MANAGER_RELOAD}")
+    print(f"🌐 Network: {settings.CHAIN_NETWORK}")
+    print(f"📡 NetUID: {settings.CHAIN_NETUID}")
+    
+    print("\n📋 Available endpoints:")
+    print("  🔐 /wallet/* - Wallet management endpoints")
+    print("  🌐 /subnet/* - Subnet API endpoints")
+    print("  📚 /docs - Interactive API documentation")
+    print("  ❤️  /health - Health check")
+    print("  🏠 / - Root endpoint")
+    
+    print("\n🔗 Quick access:")
+    print(f"  📚 API Docs: http://{settings.MANAGER_HOST}:{settings.MANAGER_PORT}/docs")
+    print(f"  ❤️  Health: http://{settings.MANAGER_HOST}:{settings.MANAGER_PORT}/health")
+    print(f"  🌐 Subnet Health: http://{settings.MANAGER_HOST}:{settings.MANAGER_PORT}/subnet/health")
+    print("=" * 60)
+    
+    try:
+        uvicorn.run(
+            "manage.main:app",
+            host=settings.MANAGER_HOST,
+            port=settings.MANAGER_PORT,
+            log_level=settings.MANAGER_DEBUG.lower(),
+            reload=settings.MANAGER_RELOAD
+        )
+    except KeyboardInterrupt:
+        print("\n🛑 Server stopped by user")
+    except Exception as e:
+        print(f"❌ Server failed to start: {e}")
+        raise 

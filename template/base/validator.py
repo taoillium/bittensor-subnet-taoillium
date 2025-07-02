@@ -317,7 +317,7 @@ class BaseValidatorNeuron(BaseNeuron):
             f"Block: {self.metagraph.block.item()} | "
             f"Incentive: {self.metagraph.I[self.uid]} | "
         )
-        bt.logging.info(log)
+        bt.logging.trace(log)
 
         # Check if the metagraph axon info has changed.
         if previous_metagraph.axons == self.metagraph.axons:

@@ -124,7 +124,11 @@ class Validator(BaseValidatorNeuron):
             self (:obj:`bittensor.neuron.Neuron`): The neuron object which contains all the necessary state for the validator.
 
         """
-        # TODO(developer): Define how the validator selects a miner to query, how often, etc.
+        bt.logging.debug(f"Validator forward synapse.input: {synapse}")
+        if synapse.input.get("__type__") == "miner":
+            synapse.output = {"error": "skip miner task", "uid": self.uid}
+            return synapse
+
         # get_random_uids is an example method, but you can replace it with your own.
         miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
        

@@ -59,7 +59,7 @@ def refresh_business_server_token(self):
         bt.logging.info("Refreshing business server token")
         self.register_with_business_server()
     else:
-        bt.logging.debug("Token still valid, no refresh needed")
+        bt.logging.trace("Token still valid, no refresh needed")
 ```
 
 #### 4. Integration with Sync Cycle

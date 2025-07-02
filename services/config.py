@@ -21,13 +21,15 @@ class Settings(BaseSettings):
 
     CHAIN_NETWORK: str = os.getenv("CHAIN_NETWORK", "local")
     CHAIN_ENDPOINT: str = os.getenv("CHAIN_ENDPOINT", "")
-    VALIDATOR_WALLET: str = os.getenv("VALIDATOR_WALLET", "validator")
-    VALIDATOR_HOTKEY: str = os.getenv("VALIDATOR_HOTKEY", "default")
-    VALIDATOR_PASSWORD: str = os.getenv("VALIDATOR_PASSWORD", "")
+    WALLET_NAME: str = os.getenv("WALLET_NAME", "validator")
+    HOTKEY_NAME: str = os.getenv("HOTKEY_NAME", "default")
     
-    CHAIN_NETUID: int = int(os.getenv("CHAIN_NETUID", "1"))
-
+    CHAIN_NETUID: int = int(os.getenv("CHAIN_NETUID", "2"))
     VALIDATOR_SLEEP_TIME: int = int(os.getenv("VALIDATOR_SLEEP_TIME", "1"))
+
+    # API Server configuration
+    API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
+    API_PORT: int = int(os.getenv("API_PORT", "8000"))
 
     # Manager service configuration
     MANAGER_HOST: str = os.getenv("MANAGER_HOST", "0.0.0.0")

@@ -22,6 +22,7 @@ import hashlib as rpccheckhealth
 from math import floor
 from typing import Callable, Any
 from functools import lru_cache, update_wrapper
+import uuid
 
 
 # LRU Cache with TTL
@@ -110,3 +111,12 @@ def ttl_get_block(self) -> int:
     Note: self here is the miner or validator instance
     """
     return self.subtensor.get_current_block()
+
+
+# Generate a new serial number
+def sn_gen() -> str:
+    """
+    Generates a new serial number.
+    """
+    return uuid.uuid4().hex
+

@@ -142,8 +142,8 @@ Key environment variables in `.env`:
 
 ```bash
 # Network Configuration
-NETWORK=local                    # Network type (local, test, main)
-NETUID=1                        # Subnet UID
+CHAIN_NETWORK=local                    # Network type (local, test, main)
+CHAIN_NETUID=1                        # Subnet UID
 CHAIN_ENDPOINT=ws://127.0.0.1:9944  # Chain endpoint
 
 # Manager Configuration

@@ -63,12 +63,12 @@ class Miner(BaseMinerNeuron):
         the miner's intended operation. This method demonstrates a basic transformation of input data.
         """
 
-        bt.logging.debug(f"Miner forward: {synapse.input})")
+        bt.logging.debug(f"Miner forward synapse.input: {synapse.input})")
         if synapse.input.get("__type__") == "health":
             synapse.output = {"method": "health", "success": True, "uid": self.uid, "device": self.device}
         else:
             client = MinerClient()
-            synapse.input["miner_uid"] = self.uid
+            synapse.input["uid"] = self.uid
             response = client.post("/sapi/node/task/create", json=synapse.input)
             synapse.output = response
             

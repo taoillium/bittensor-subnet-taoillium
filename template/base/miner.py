@@ -204,4 +204,4 @@ class BaseMinerNeuron(BaseNeuron):
             f"Block: {self.metagraph.block.item()} | "
             f"Incentive: {self.metagraph.I[self.uid]} | "
         )
-        bt.logging.info(log)
+        bt.logging.trace(log)

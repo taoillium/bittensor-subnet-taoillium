@@ -108,7 +108,7 @@ class BaseNeuron(ABC):
             self.wallet.hotkey.ss58_address
         )
         bt.logging.info(
-            f"Running neuron on subnet: {self.config.netuid} with uid {self.uid} using network: {self.subtensor.chain_endpoint}"
+            f"Running neuron on subnet: {self.config.netuid} with type {self.neuron_type} uid {self.uid} using network: {self.subtensor.chain_endpoint}"
         )
         self.step = 0
 
@@ -206,8 +206,6 @@ class BaseNeuron(ABC):
         if self.should_refresh_token():
             bt.logging.info("Refreshing business server token")
             self.register_with_business_server()
-        else:
-            bt.logging.debug("Token still valid, no refresh needed")
 
     def check_registered(self):
         # --- Check for registration.

@@ -20,7 +20,7 @@
 import bittensor as bt
 from typing import List, Optional, Union, Any, Dict
 from template.protocol import Dummy
-from bittensor.subnets import SubnetsAPI
+from bittensor import SubnetsAPI
 
 
 class DummyAPI(SubnetsAPI):
