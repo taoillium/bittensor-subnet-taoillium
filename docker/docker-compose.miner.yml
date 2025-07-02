@@ -6,7 +6,7 @@ services:
       dockerfile: docker/Dockerfile
       args:
         - SERVICE_TYPE=miner
-    image: bst-miner:${MINER_VERSION:-latest}
+    image: bst-miner:${VERSION:-latest}
     container_name: bst-miner-${MINER_NAME:-default}
     ports:
       - "${MINER_PORT:-8091}:${MINER_PORT:-8091}"

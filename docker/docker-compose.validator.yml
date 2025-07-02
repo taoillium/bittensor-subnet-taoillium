@@ -6,7 +6,7 @@ services:
       dockerfile: docker/Dockerfile
       args:
         - SERVICE_TYPE=validator
-    image: bst-validator:${VALIDATOR_VERSION:-latest}
+    image: bst-validator:${VERSION:-latest}
     container_name: bst-validator-${VALIDATOR_NAME:-default}
     ports:
       - "${VALIDATOR_PORT:-8092}:${VALIDATOR_PORT:-8092}"

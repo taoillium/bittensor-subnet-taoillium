@@ -2,10 +2,11 @@
 CURRENT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd $CURRENT_DIR
 parent_dir=$(basename "$(dirname "$(pwd)")")
-cd ..
+source $CURRENT_DIR/version.sh
+
+cd ../
 
 SERVICE_TYPE="validator"
-VERSION=0.0.1
 VALIDATOR_NAME=${parent_dir}
 
 if [ ! -f "./.env" ]; then
@@ -13,16 +14,6 @@ if [ ! -f "./.env" ]; then
     exit 1
 fi
 
-
-# set version for validator service
-# if .env file exists VALIDATOR_VERSION, update it
-if grep -q "VALIDATOR_VERSION=" ./.env; then
-    sed -i '' "s/VALIDATOR_VERSION=.*/VALIDATOR_VERSION=$VERSION/" ./.env
-else
-    # if not exists, add to file end
-    echo "" >> ./.env
-    echo "VALIDATOR_VERSION=$VERSION" >> ./.env
-fi
 
 # if .env file exists VALIDATOR_NAME, update it
 if grep -q "VALIDATOR_NAME=" ./.env; then
@@ -55,7 +46,7 @@ fi
 
 source ./.env
 
-docker_image="bst-validator:${VALIDATOR_VERSION:-latest}"
+docker_image="bst-validator:${VERSION:-latest}"
 
 check_image() {
     if [ -n "$(docker images -q $docker_image)" ]; then

@@ -6,7 +6,7 @@ services:
       dockerfile: docker/Dockerfile
       args:
         - SERVICE_TYPE=manager
-    image: bst-manager:${MANAGER_VERSION:-latest}
+    image: bst-manager:${VERSION:-latest}
     container_name: bst-manager-${MANAGER_PORT:-8000}
     ports:
       - "${MANAGER_PORT:-8000}:${MANAGER_PORT:-8000}"

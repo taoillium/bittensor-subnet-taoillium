@@ -2,26 +2,16 @@
 CURRENT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd $CURRENT_DIR
 parent_dir=$(basename "$(dirname "$(pwd)")")
-cd ..
+source $CURRENT_DIR/version.sh
+
+cd ../
 
 SERVICE_TYPE="miner"
-VERSION=0.0.1
 MINER_NAME=${parent_dir}
 
 if [ ! -f "./.env" ]; then
     echo "please create .env file"
     exit 1
-fi
-
-
-# set version for miner service
-# if .env file exists MINER_VERSION, update it
-if grep -q "MINER_VERSION=" ./.env; then
-    sed -i '' "s/MINER_VERSION=.*/MINER_VERSION=$VERSION/" ./.env
-else
-    # if not exists, add to file end
-    echo "" >> ./.env
-    echo "MINER_VERSION=$VERSION" >> ./.env
 fi
 
 # if .env file exists MINER_NAME, update it
@@ -47,7 +37,7 @@ source ./.env
 
 
 
-docker_image="bst-miner:${MINER_VERSION:-latest}"
+docker_image="bst-miner:${VERSION:-latest}"
 
 check_image() {
     if [ -n "$(docker images -q $docker_image)" ]; then
