@@ -12,128 +12,271 @@
 </div>
 
 ---
-- [Quickstarter template](#quickstarter-template)
-- [Introduction](#introduction)
-  - [Example](#example)
+
+## Table of Contents
+- [Overview](#overview)
+- [Features](#features)
+- [Quick Start](#quick-start)
 - [Installation](#installation)
-  - [Before you proceed](#before-you-proceed)
-  - [Install](#install)
-- [Project Structure Update](#project-structure-update)
-  - [Key Directories](#key-directories)
-    - [`neurons/`](#neurons)
-    - [`services/`](#services)
-  - [How to Extend](#how-to-extend)
-  - [Example Flow](#example-flow)
-- [Subnet Links](#subnet-links)
+  - [Prerequisites](#prerequisites)
+  - [Deployment Options](#deployment-options)
+- [Project Structure](#project-structure)
+  - [Core Components](#core-components)
+  - [Documentation](#documentation)
+  - [Configuration](#configuration)
+- [Development](#development)
+  - [Extending the Subnet](#extending-the-subnet)
+  - [Testing](#testing)
+  - [Contributing](#contributing)
+- [Deployment](#deployment)
 - [License](#license)
 
 ---
-## Quickstarter template
 
-This template contains all the required installation instructions, scripts, and files and functions for:
-- Building Bittensor subnets.
-- Creating custom incentive mechanisms and running these mechanisms on the subnets. 
+## Overview
 
-In order to simplify the building of subnets, this template abstracts away the complexity of the underlying blockchain and other boilerplate code. While the default behavior of the template is sufficient for a simple subnet, you should customize the template in order to meet your specific requirements.
----
+**Bittensor Subnet Taoillium** is a comprehensive framework for building and deploying incentivized subnets on the Bittensor blockchain. This project provides a complete template that abstracts away the complexity of blockchain interactions while offering powerful tools for creating custom incentive mechanisms.
 
-## Introduction
-
-**IMPORTANT**: If you are new to Bittensor subnets, read this section before proceeding to [Installation](#installation) section. 
-
-The Bittensor blockchain hosts multiple self-contained incentive mechanisms called **subnets**. Subnets are playing fields in which:
-- Subnet miners who produce value, and
-- Subnet validators who produce consensus
-
-determine together the proper distribution of TAO for the purpose of incentivizing the creation of value, i.e., generating digital commodities, such as intelligence or data. 
+The Bittensor blockchain hosts multiple self-contained incentive mechanisms called **subnets**, where:
+- **Subnet Miners** produce value through computational work
+- **Subnet Validators** produce consensus and evaluate miner contributions
+- Together they determine the proper distribution of TAO tokens to incentivize value creation
 
 Each subnet consists of:
-- Subnet miners and subnet validators.
-- A protocol using which the subnet miners and subnet validators interact with one another. This protocol is part of the incentive mechanism.
-- The Bittensor API using which the subnet miners and subnet validators interact with Bittensor's onchain consensus engine [Yuma Consensus](https://bittensor.com/documentation/validating/yuma-consensus). The Yuma Consensus is designed to drive these actors: subnet validators and subnet miners, into agreement on who is creating value and what that value is worth. 
+- Subnet miners and validators
+- A communication protocol for miner-validator interactions
+- Integration with Bittensor's [Yuma Consensus](https://bittensor.com/documentation/validating/yuma-consensus) engine
 
-This starter template is split into three primary files. To write your own incentive mechanism, you should edit these files. These files are:
-1. `template/protocol.py`: Contains the definition of the protocol used by subnet miners and subnet validators.
-2. `neurons/miner.py`: Script that defines the subnet miner's behavior, i.e., how the subnet miner responds to requests from subnet validators.
-3. `neurons/validator.py`: This script defines the subnet validator's behavior, i.e., how the subnet validator requests information from the subnet miners and determines the scores.
+## Features
 
-### Example
+### 🚀 **Core Functionality**
+- **Modular Architecture**: Clean separation of miners, validators, and service layers
+- **Custom Protocols**: Flexible protocol definition for miner-validator communication
+- **Streaming Support**: Built-in streaming data transmission capabilities
+- **API Management**: FastAPI-driven management server with comprehensive endpoints
 
-The Bittensor Subnet 1 for Text Prompting is built using this template. See [prompting](https://github.com/macrocosm-os/prompting) for how to configure the files and how to add monitoring and telemetry and support multiple miner types. Also see this Subnet 1 in action on [Taostats](https://taostats.io/subnets/netuid-1/) explorer.
+### 🔐 **Security & Authentication**
+- **JWT Authentication**: Secure token-based authentication system
+- **Wallet Management**: Integrated Bittensor wallet operations
+- **API Security**: Protected endpoints with role-based access control
 
----
+### 🐳 **Deployment & Operations**
+- **Docker Support**: Complete containerized deployment solution
+- **Multi-Environment**: Support for local, testnet, and mainnet deployments
+- **Management API**: RESTful API for subnet operations and monitoring
+
+### 📚 **Documentation & Testing**
+- **Comprehensive Docs**: Complete documentation from setup to production
+- **Test Suite**: Extensive testing framework with automated validation
+- **Tutorials**: Step-by-step guides for various use cases
+
+## Quick Start
+
+### Prerequisites
+- Python 3.8+
+- Docker (for containerized deployment)
+- Bittensor wallet
+- Minimum compute requirements (see [min_compute.yml](./min_compute.yml))
+
+### Basic Setup
+```bash
+# Clone the repository
+git clone <repository-url>
+cd bittensor-subnet-taoillium
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your configuration
+```
+
+### Run Locally
+```bash
+# Start miner
+python neurons/miner.py --netuid 1 --wallet.name default --wallet.hotkey miner
+
+# Start validator
+python neurons/validator.py --netuid 1 --wallet.name default --wallet.hotkey validator
+```
 
 ## Installation
 
-### Before you proceed
-Before you proceed with the installation of the subnet, note the following: 
+### Prerequisites
+Before proceeding with installation, ensure you have:
+- **Python 3.8+** installed
+- **Docker** (for containerized deployment)
+- **Bittensor wallet** configured
+- **Minimum compute resources** as specified in [min_compute.yml](./min_compute.yml)
 
-- Use these instructions to run your subnet locally for your development and testing, or on Bittensor testnet or on Bittensor mainnet. 
-- **IMPORTANT**: We **strongly recommend** that you first run your subnet locally and complete your development and testing before running the subnet on Bittensor testnet. Furthermore, make sure that you next run your subnet on Bittensor testnet before running it on the Bittensor mainnet.
-- You can run your subnet either as a subnet owner, or as a subnet validator or as a subnet miner. 
-- **IMPORTANT:** Make sure you are aware of the minimum compute requirements for your subnet. See the [Minimum compute YAML configuration](./min_compute.yml).
-- Note that installation instructions differ based on your situation: For example, installing for local development and testing will require a few additional steps compared to installing for testnet. Similarly, installation instructions differ for a subnet owner vs a validator or a miner. 
+### Deployment Options
 
-### Install
+#### 🏠 **Local Development**
+For development and testing, follow the [Local Development Guide](./docs/running_on_staging.md).
 
-- **Running locally**: Follow the step-by-step instructions described in this section: [Running Subnet Locally](./docs/running_on_staging.md).
-- **Running on Bittensor testnet**: Follow the step-by-step instructions described in this section: [Running on the Test Network](./docs/running_on_testnet.md).
-- **Running on Bittensor mainnet**: Follow the step-by-step instructions described in this section: [Running on the Main Network](./docs/running_on_mainnet.md).
+#### 🧪 **Test Network**
+For testing on Bittensor testnet, follow the [Test Network Guide](./docs/running_on_testnet.md).
 
----
+#### 🌐 **Main Network**
+For production deployment on Bittensor mainnet, follow the [Main Network Guide](./docs/running_on_mainnet.md).
 
-## Project Structure Update
+#### 🐳 **Docker Deployment**
+For containerized deployment, see the [Docker Deployment Guide](./docker/README.md).
 
-### Key Directories
+## Project Structure
 
-#### `neurons/`
-This directory contains the main entry points for the two core roles in a Bittensor subnet:
-- **`miner.py`**: Implements the logic for a subnet miner. The miner receives requests from validators, processes them (often by interacting with external APIs or services), and returns responses. The miner class inherits from a base class that handles most of the Bittensor-specific boilerplate, allowing you to focus on your custom logic.
-- **`validator.py`**: Implements the logic for a subnet validator. The validator queries miners, evaluates their responses, and assigns scores or rewards. This implementation includes an HTTP server (using FastAPI) to expose endpoints for external interaction and uses JWT-based authentication for security.
+### Core Components
 
-Both files are designed for easy extension: override the `forward` method to define your custom behavior for processing and validating requests.
+#### `neurons/` - Core Node Implementation
+- **[`miner.py`](./neurons/miner.py)**: Subnet miner implementation that processes validator requests
+- **[`validator.py`](./neurons/validator.py)**: Subnet validator implementation that queries miners and evaluates responses
 
-#### `services/`
-This directory modularizes the supporting infrastructure for your subnet logic, separating concerns and making the codebase more maintainable and extensible:
-- **`protocol.py`**: Defines the wire protocol (`ServiceProtocol`) used for communication between miners and validators. This protocol is based on Bittensor's `bt.Synapse` and specifies the request/response schema.
-- **`api.py`**: Provides HTTP client classes (`MinerClient`, `ValidatorClient`) for interacting with external APIs or services. These clients handle authentication and simplify making requests to your service endpoints.
-- **`security.py`**: Implements JWT-based authentication utilities, including token creation and verification, to secure API endpoints and inter-node communication.
-- **`config.py`**: Centralizes configuration management using environment variables and Pydantic settings, making it easy to adjust deployment parameters and secrets.
+#### `services/` - Service Layer
+- **[`protocol.py`](./services/protocol.py)**: Communication protocol definition between miners and validators
+- **[`api.py`](./services/api.py)**: HTTP client classes for external API interactions
+- **[`security.py`](./services/security.py)**: JWT authentication utilities
+- **[`config.py`](./services/config.py)**: Centralized configuration management
+- **[`cli.py`](./services/cli.py)**: Command-line interface tools
 
-### How to Extend
+#### `template/` - Base Components
+- **[`protocol.py`](./template/protocol.py)**: Base protocol definitions
+- **[`mock.py`](./template/mock.py)**: Mock service implementations
+- **[`subnet_links.py`](./template/subnet_links.py)**: Subnet link management
 
-- To **customize miner or validator behavior**, edit `neurons/miner.py` and `neurons/validator.py`, focusing on the `forward` methods.
-- To **change the protocol or add new message types**, update or extend `services/protocol.py`.
-- To **integrate with new external services or APIs**, add or modify client classes in `services/api.py`.
-- To **adjust authentication or security policies**, update `services/security.py`.
-- To **change configuration options**, edit `services/config.py` and your `.env` file.
+#### `manage/` - Management API
+- **[Management Server](./manage/README.md)**: FastAPI-based management server with wallet and subnet operations
 
-### Example Flow
+### Documentation
 
-1. **Validator** sends a request to a **Miner** using the `ServiceProtocol`.
-2. **Miner** processes the request, possibly using a service client from `services/api.py`, and returns a response.
-3. **Validator** evaluates the response, scores the miner, and may interact with external APIs for validation or reward logic.
+#### 📖 **User Guides**
+- **[Local Development](./docs/running_on_staging.md)**: Complete local setup and development guide
+- **[Test Network Deployment](./docs/running_on_testnet.md)**: Step-by-step testnet deployment
+- **[Main Network Deployment](./docs/running_on_mainnet.md)**: Production deployment guide
+- **[Remote Wallet Setup](./docs/remote_wallet_setup.md)**: Remote wallet configuration
+- **[Management Usage](./docs/manage_usage.md)**: Management service usage guide
 
----
+#### 🔧 **Technical Documentation**
+- **[Token Refresh Design](./docs/token_refresh_design.md)**: Token refresh mechanism design
+- **[Streaming Tutorial](./docs/stream_tutorial/README.md)**: Complete streaming integration guide
+- **[Docker Deployment](./docker/README.md)**: Containerized deployment guide
+- **[Testing Documentation](./tests/README.md)**: Test suite documentation
+
+#### 👥 **Contributor Resources**
+- **[Contributing Guidelines](./contrib/CONTRIBUTING.md)**: How to contribute to the project
+- **[Development Workflow](./contrib/DEVELOPMENT_WORKFLOW.md)**: Development processes and best practices
+- **[Code Style Guide](./contrib/STYLE.md)**: Coding standards and conventions
+- **[Code Review Guidelines](./contrib/CODE_REVIEW_DOCS.md)**: Code review process and standards
+
+### Configuration
+
+The project uses environment-based configuration through `services/config.py`. Key configuration areas include:
+
+- **Network Settings**: Chain endpoints, netuid, network type
+- **Service Ports**: Manager, miner, and validator port configurations
+- **Authentication**: JWT tokens and wallet credentials
+- **Compute Requirements**: Minimum resource specifications
+
+## Development
+
+### Extending the Subnet
+
+#### Customizing Behavior
+- **Miner Logic**: Override the `forward` method in `neurons/miner.py`
+- **Validator Logic**: Override the `forward` method in `neurons/validator.py`
+- **Protocol Changes**: Modify `services/protocol.py` for new message types
+- **API Integration**: Add client classes in `services/api.py`
+- **Security Policies**: Update `services/security.py` for authentication changes
+
+#### Example Workflow
+1. **Validator** sends request to **Miner** using `ServiceProtocol`
+2. **Miner** processes request (optionally using external APIs) and returns response
+3. **Validator** evaluates response, scores miner, and may interact with external APIs
+
+### Testing
+
+Run the comprehensive test suite:
+```bash
+# Run all tests
+cd tests
+python run_new_tests.py
+
+# Run specific test files
+python -m unittest test_api_fix.py -v
+python -m unittest test_miner_detection.py -v
+python -m unittest test_subnet_api.py -v
+```
+
+### Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](./contrib/CONTRIBUTING.md) for:
+- Code contribution process
+- Development workflow
+- Code style standards
+- Pull request guidelines
+
+## Deployment
+
+### Docker Deployment
+For production deployments, use our comprehensive Docker setup:
+
+```bash
+# Deploy manager service
+./docker/deploy.sh manager
+
+# Deploy miner service
+./docker/deploy.sh miner
+
+# Deploy validator service
+./docker/deploy.sh validator
+```
+
+### Management API
+The management server provides RESTful APIs for:
+- **Wallet Operations**: Sign messages, verify signatures, manage wallets
+- **Subnet Interactions**: Query network, receive tasks, monitor health
+- **Authentication**: JWT-based secure access
+
+Access the interactive API documentation at `/docs` when running the management server.
+
+## Example Use Cases
+
+### Text Prompting Subnet
+The Bittensor Subnet 1 for Text Prompting is built using this template. See [prompting](https://github.com/macrocosm-os/prompting) for configuration examples and [Taostats](https://taostats.io/subnets/netuid-1/) for live network data.
+
+### Streaming Applications
+For streaming data applications, see the [Streaming Tutorial](./docs/stream_tutorial/README.md) for complete implementation examples.
+
+## Support & Community
+
+- **Discord**: Join our [Discord community](https://discord.gg/bittensor)
+- **Documentation**: Comprehensive guides in the `docs/` directory
+- **Issues**: Report bugs and request features via GitHub issues
+- **Discussions**: Use GitHub discussions for questions and ideas
 
 ## License
-This repository is licensed under the MIT License.
+
+This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+
 ```text
-# The MIT License (MIT)
-# Copyright © 2024 Opentensor Foundation
-# Copyright © 2025 Taoillium Foundation
+Copyright © 2024 Opentensor Foundation
+Copyright © 2025 Taoillium Foundation
 
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
-# documentation files (the "Software"), to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
-# and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
-# the Software.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
-# THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
-# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-# DEALINGS IN THE SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
