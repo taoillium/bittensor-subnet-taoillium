@@ -1,7 +1,8 @@
 import sys
 import unittest
-
+import os
 import services.security as security
+import services.config as config
 
 class SecurityTestCase(unittest.TestCase):
     """
@@ -9,15 +10,15 @@ class SecurityTestCase(unittest.TestCase):
     """
 
     def setUp(self):
-        pass
+        self.uid = os.getenv("TEST_UID","1")
 
     def test_create_manage_access_token(self):
-        token = security.create_manage_access_token({"id": 1, "providerId": "bittensor", "roles": ["wallet-manage"], "_admin": "admin"})
+        token = security.create_manage_access_token({"id": self.uid, "chain": "bittensor", "roles": ["wallet-manage"]})
         print(token)
         self.assertIsNotNone(token)
 
     def test_verify_manage_token(self):
-        token = security.create_manage_access_token({"id": 1, "providerId": "bittensor", "roles": ["wallet-manage"], "_admin": "admin"})
+        token = security.create_manage_access_token({"id": self.uid, "chain": "bittensor", "roles": ["wallet-manage"]})
         self.assertIsNotNone(token)
         self.assertTrue(security.verify_manage_token(token))
 

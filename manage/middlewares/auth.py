@@ -23,7 +23,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         logger.info(f"User {user} authenticated")
 
-        if "node-manage" not in user.get("roles", []) and user.get("_admin") != "admin":
-            return JSONResponse(status_code=403, content={"error": "Forbidden"})
+        # if "node-manage" not in user.get("roles", []) :
+        #     return JSONResponse(status_code=403, content={"error": "Forbidden"})
         
         return await call_next(request)

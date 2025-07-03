@@ -118,7 +118,19 @@ async def get_query_api_axons(
     dendrite = bt.dendrite(wallet=wallet)
 
     if metagraph is None:
-        metagraph = bt.metagraph(netuid=21)
+        # Create config for metagraph with proper chain endpoint
+        import argparse
+        parser = argparse.ArgumentParser()
+        bt.subtensor.add_args(parser)
+        config = bt.config(parser)
+        
+        # Use default chain endpoint for mainnet
+        config.subtensor.chain_endpoint = "wss://entrypoint-finney.opentensor.ai:443"
+        config.subtensor.network = "finney"
+        
+        # Create subtensor and metagraph with config
+        subtensor = bt.subtensor(config=config)
+        metagraph = subtensor.metagraph(netuid=21)
 
     if uids is not None:
         query_uids = [uids] if isinstance(uids, int) else uids

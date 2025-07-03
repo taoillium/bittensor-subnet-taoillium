@@ -1,0 +1,40 @@
+{
+    "neuron": {
+        "name": "validator",
+        "netuid": 1,
+        "events_retention_size": 2147483648,
+        "dont_save_events": false
+    },
+    "wallet": {
+        "name": "validator",
+        "hotkey": "validator",
+        "path": "~/.bittensor/wallets/"
+    },
+    "logging": {
+        "debug": true,
+        "trace": false,
+        "record_log": false,
+        "logging_dir": "~/.bittensor/miners/validator/logs"
+    },
+    "subtensor": {
+        "network": "test",
+        "chain_endpoint": "ws://127.0.0.1:9944"
+    },
+    "metagraph": {
+        "netuid": 1
+    },
+    "axon": {
+        "port": 8091,
+        "ip": "0.0.0.0",
+        "external_ip": "0.0.0.0"
+    },
+    "dendrite": {
+        "max_active_receptors": 4096,
+        "compression": null
+    },
+    "wandb": {
+        "project": "validator",
+        "entity": null,
+        "offline": false
+    }
+} 

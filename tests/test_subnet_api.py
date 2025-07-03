@@ -73,7 +73,8 @@ class TestSubnetAPI(unittest.TestCase):
             api_client = TaoilliumAPI(
                 wallet=wallet, 
                 netuid=settings.CHAIN_NETUID, 
-                network=settings.CHAIN_NETWORK
+                network=settings.CHAIN_NETWORK,
+                chain_endpoint=settings.CHAIN_ENDPOINT
             )
             
             self.assertIsNotNone(api_client)
@@ -166,7 +167,8 @@ class TestSubnetAPIIntegration(unittest.TestCase):
             api_client = TaoilliumAPI(
                 wallet=wallet, 
                 netuid=settings.CHAIN_NETUID, 
-                network=settings.CHAIN_NETWORK
+                network=settings.CHAIN_NETWORK,
+                chain_endpoint=settings.CHAIN_ENDPOINT
             )
             self.assertIsNotNone(api_client)
             

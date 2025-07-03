@@ -102,7 +102,7 @@ def get_api_client() -> TaoilliumAPI:
             config.wallet.name = settings.WALLET_NAME
             config.wallet.hotkey = settings.HOTKEY_NAME
             wallet = bt.wallet(config=config)
-            _api_client = TaoilliumAPI(wallet=wallet, netuid=settings.CHAIN_NETUID, network=settings.CHAIN_NETWORK)
+            _api_client = TaoilliumAPI(wallet=wallet, netuid=settings.CHAIN_NETUID, network=settings.CHAIN_NETWORK, chain_endpoint=settings.CHAIN_ENDPOINT)
             logger.info(f"Initialized TaoilliumAPI client for netuid {settings.CHAIN_NETUID}")
         except Exception as e:
             logger.error(f"Failed to initialize wallet: {e}")
@@ -114,7 +114,27 @@ def get_api_client() -> TaoilliumAPI:
 def get_metagraph():
     """Get or create the metagraph instance (no wallet required)"""
     try:
-        return bt.metagraph(netuid=settings.CHAIN_NETUID, network=settings.CHAIN_NETWORK)
+        # Create config for subtensor with chain_endpoint
+        import argparse
+        parser = argparse.ArgumentParser()
+        bt.subtensor.add_args(parser)
+        config = bt.config(parser)
+        
+        # Set chain endpoint from settings
+        if hasattr(settings, 'CHAIN_ENDPOINT') and settings.CHAIN_ENDPOINT:
+            config.subtensor.chain_endpoint = settings.CHAIN_ENDPOINT
+        elif settings.CHAIN_NETWORK == "local":
+            config.subtensor.chain_endpoint = "ws://127.0.0.1:9944"
+        elif settings.CHAIN_NETWORK == "finney":
+            config.subtensor.chain_endpoint = "wss://entrypoint-finney.opentensor.ai:443"
+        elif settings.CHAIN_NETWORK == "test":
+            config.subtensor.chain_endpoint = "wss://test.opentensor.ai:443"
+        
+        config.subtensor.network = settings.CHAIN_NETWORK
+        
+        # Create subtensor and metagraph with config
+        subtensor = bt.subtensor(config=config)
+        return subtensor.metagraph(netuid=settings.CHAIN_NETUID)
     except Exception as e:
         logger.error(f"Failed to initialize metagraph: {e}")
         return None

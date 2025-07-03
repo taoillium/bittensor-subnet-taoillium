@@ -20,6 +20,7 @@ from typing import List, Union, Any, Dict
 from bittensor import SubnetsAPI
 import services.protocol as protocol
 from template.api.get_query_axons import get_query_api_axons
+from services.config import settings
 
 
 class TaoilliumAPI(SubnetsAPI):
@@ -28,13 +29,45 @@ class TaoilliumAPI(SubnetsAPI):
     This class provides a clean interface for external clients to interact with the subnet.
     """
     
-    def __init__(self, wallet: "bt.wallet", netuid: int = None, network: str = "local"):
+    def __init__(self, wallet: "bt.wallet", netuid: int = None, network: str = 'local', chain_endpoint: str = 'ws://127.0.0.1:9944'):
         super().__init__(wallet)
         if netuid is None:
             raise ValueError("netuid is required")
+        
+        bt.logging.info(f"TaoilliumAPI wallet: {wallet}")
+        bt.logging.info(f"TaoilliumAPI netuid: {netuid}")
+        bt.logging.info(f"TaoilliumAPI network: {network}")
+        bt.logging.info(f"TaoilliumAPI chain_endpoint: {chain_endpoint}")
+
         self.netuid = netuid
         self.name = "taoillium"
-        self.metagraph = bt.metagraph(netuid=self.netuid, network=network)
+        
+        # Create config for metagraph with chain_endpoint
+        import argparse
+        parser = argparse.ArgumentParser()
+        bt.subtensor.add_args(parser)
+        config = bt.config(parser)
+
+        config.subtensor.network = network
+        config.subtensor.chain_endpoint = chain_endpoint
+        
+        # Create subtensor and metagraph with config
+        bt.logging.info(f"Creating subtensor with config: network={config.subtensor.network}, chain_endpoint={config.subtensor.chain_endpoint}")
+        self.subtensor = bt.subtensor(config=config)
+        self.metagraph = self.subtensor.metagraph(netuid=self.netuid)
+        
+        # Log metagraph info
+        bt.logging.info(f"Metagraph created: netuid={self.metagraph.netuid}, total_neurons={len(self.metagraph.axons)}")
+        bt.logging.info(f"Metagraph network: {self.metagraph.network}")
+        bt.logging.info(f"Metagraph block: {self.metagraph.block}")
+        
+        # Log some axon details for debugging
+        serving_axons = [i for i, axon in enumerate(self.metagraph.axons) if axon.is_serving]
+        bt.logging.info(f"Serving axons: {serving_axons}")
+        if serving_axons:
+            for uid in serving_axons[:3]:  # Show first 3 serving axons
+                axon = self.metagraph.axons[uid]
+                bt.logging.info(f"UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
         
     def prepare_synapse(self, user_input: Dict[str, Any]) -> protocol.ServiceProtocol:
         """
@@ -243,12 +276,28 @@ class TaoilliumAPI(SubnetsAPI):
         # Return UIDs directly
         return selected_uids
 
-    async def ping_uids(self, uids, timeout=3):
+    async def ping_uids(self, uids, timeout=10):
         axons = [self.metagraph.axons[uid] for uid in uids]
+        
+        # Debug: Print axon details before pinging
+        bt.logging.debug(f"Pinging axons:")
+        for uid, axon in zip(uids, axons):
+            bt.logging.debug(f"  UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
+        
         responses = await self.dendrite(axons, bt.Synapse(), deserialize=False, timeout=timeout)
         
+        # Debug: Print response details
+        for uid, response in zip(uids, responses):
+            if hasattr(response, 'dendrite') and hasattr(response.dendrite, 'status_code'):
+                bt.logging.debug(f"  UID {uid}: status_code={response.dendrite.status_code}")
+            else:
+                bt.logging.debug(f"  UID {uid}: no status_code attribute")
+        
         # only return successful uids
-        return [
+        successful_uids = [
             uid for uid, response in zip(uids, responses)
-            if response.dendrite.status_code == 200
+            if hasattr(response, 'dendrite') and hasattr(response.dendrite, 'status_code') and response.dendrite.status_code == 200
         ]
+        
+        bt.logging.debug(f"Successful UIDs: {successful_uids}")
+        return successful_uids

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import jwt
 import time
@@ -17,9 +17,9 @@ def create_neuron_access_token(data: dict, expires_delta: Optional[timedelta] = 
     """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.NEURON_JWT_EXPIRE_IN)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.NEURON_JWT_EXPIRE_IN)
     to_encode.update({"salt": time.time()})
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.NEURON_JWT_SECRET_KEY, algorithm=settings.NEURON_JWT_ALGORITHM)
@@ -57,9 +57,9 @@ def create_manage_access_token(data: dict, expires_delta: Optional[timedelta] = 
     """
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.MANAGER_JWT_EXPIRE_IN)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.MANAGER_JWT_EXPIRE_IN)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.MANAGER_JWT_SECRET_KEY, algorithm=settings.MANAGER_JWT_ALGORITHM)
     return encoded_jwt

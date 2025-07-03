@@ -34,7 +34,8 @@ class TestTaoilliumAPIMinerSelection(unittest.TestCase):
             self.api_client = TaoilliumAPI(
                 wallet=self.wallet, 
                 netuid=settings.CHAIN_NETUID, 
-                network=settings.CHAIN_NETWORK
+                network=settings.CHAIN_NETWORK,
+                chain_endpoint=settings.CHAIN_ENDPOINT
             )
         except Exception as e:
             self.skipTest(f"Failed to set up API client: {e}")

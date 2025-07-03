@@ -1,13 +1,10 @@
 #!/bin/bash
 CURRENT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd $CURRENT_DIR/../
-
 source $CURRENT_DIR/version.sh
-
-cd ../
-
-
 SERVICE_TYPE="manager"
+
+
+cd $CURRENT_DIR/../
 
 
 if [ ! -f "./.env" ]; then

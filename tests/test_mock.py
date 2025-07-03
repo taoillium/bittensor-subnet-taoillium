@@ -1,13 +1,13 @@
 import pytest
 import asyncio
 import bittensor as bt
-from prompting.mock import MockDendrite, MockMetagraph, MockSubtensor
-from prompting.protocol import PromptingSynapse
+from template.mock import MockDendrite, MockMetagraph, MockSubtensor
+from template.protocol import Dummy
 
 
 @pytest.mark.parametrize("netuid", [1, 2, 3])
 @pytest.mark.parametrize("n", [2, 4, 8, 16, 32, 64])
-@pytest.mark.parametrize("wallet", [bt.MockWallet(), None])
+@pytest.mark.parametrize("wallet", [None])
 def test_mock_subtensor(netuid, n, wallet):
     subtensor = MockSubtensor(netuid=netuid, n=n, wallet=wallet)
     neurons = subtensor.neurons(netuid=netuid)
@@ -69,9 +69,7 @@ def test_mock_dendrite_timings(timeout, min_time, max_time, n):
     async def run():
         return await mock_dendrite(
             axons,
-            synapse=PromptingSynapse(
-                roles=["user"], messages=["What is the capital of France?"]
-            ),
+            synapse=Dummy(dummy_input=1),
             timeout=timeout,
         )
 

@@ -1,42 +1,42 @@
 #!/bin/bash
-cd "$(dirname "$0")"
-echo "pwd: $(pwd)"
+CURRENT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 action=${2:-""}
 
 deploy_manager() {
-    check_image_result=$(./docker-manage.sh check)
+    check_image_result=$($CURRENT_DIR/docker-manage.sh check)
 
     # if docker image not found or force-build action, build docker image
     if [ "$check_image_result" == "" -o "$action" == "force-build" ]; then
         echo "docker image build..."
-        ./docker-manage.sh build
+        $CURRENT_DIR/docker-manage.sh build
     fi
 
-    ./docker-manage.sh run
+    $CURRENT_DIR/docker-manage.sh run
 }
 
 deploy_miner() {    
-    check_image_result=$(./docker-miner.sh check)
+    check_image_result=$($CURRENT_DIR/docker-miner.sh check)
 
     # if docker image not found or force-build action, build docker image
     if [ "$check_image_result" == "" -o "$action" == "force-build" ]; then
         echo "docker image build..."
-        ./docker-miner.sh build
+        $CURRENT_DIR/docker-miner.sh build
     fi
 
-    ./docker-miner.sh run
+    $CURRENT_DIR/docker-miner.sh run
 }
 
 deploy_validator() {
-    check_image_result=$(./docker-validator.sh check)
+    check_image_result=$($CURRENT_DIR/docker-validator.sh check)
 
     # if docker image not found or force-build action, build docker image
     if [ "$check_image_result" == "" -o "$action" == "force-build" ]; then
         echo "docker image build..."
-        ./docker-validator.sh build
+        $CURRENT_DIR/docker-validator.sh build
     fi
 
-    ./docker-validator.sh run
+    $CURRENT_DIR/docker-validator.sh run
 }
 
 case $1 in

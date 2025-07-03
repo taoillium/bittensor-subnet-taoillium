@@ -47,7 +47,7 @@ python -c "import services; print(\"services module imported successfully\")" ||
 case "$SERVICE_TYPE" in\n\
     "manager")\n\
         echo "Starting manager service..."\n\
-        ./scripts/start_manager.sh\n\
+        ./scripts/start_manage.sh\n\
         ;;\n\
     "miner")\n\
         echo "Starting miner service..."\n\
