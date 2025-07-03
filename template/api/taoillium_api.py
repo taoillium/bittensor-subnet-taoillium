@@ -320,6 +320,17 @@ class TaoilliumAPI(SubnetsAPI):
         bt.logging.debug(f"Pinging axons:")
         for uid, axon in zip(uids, axons):
             bt.logging.debug(f"  UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
+            # Force set the correct IP if it's 0.0.0.0
+            if axon.ip == "0.0.0.0":
+                # Try to get the real IP from the metagraph
+                real_ip = "47.129.35.160"  # Your server's public IP
+                bt.logging.warning(f"  UID {uid}: Forcing IP from {axon.ip} to {real_ip}")
+                axon.ip = real_ip
+        
+        # Debug: Print axon details after potential IP fix
+        bt.logging.debug(f"Final axon details before dendrite call:")
+        for uid, axon in zip(uids, axons):
+            bt.logging.debug(f"  UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
         
         responses = await self.dendrite(axons, bt.Synapse(), deserialize=False, timeout=timeout)
         
