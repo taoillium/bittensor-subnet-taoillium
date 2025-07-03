@@ -16,7 +16,14 @@ fi
 
 # if .env file exists MINER_NAME, update it
 if grep -q "MINER_NAME=" ./.env; then
-    sed -i '' "s/MINER_NAME=.*/MINER_NAME=$MINER_NAME/" ./.env
+    # Cross-platform sed command that works on both macOS and Linux
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sed -i '' "s/MINER_NAME=.*/MINER_NAME=$MINER_NAME/" ./.env
+    else
+        # Linux
+        sed -i "s/MINER_NAME=.*/MINER_NAME=$MINER_NAME/" ./.env
+    fi
 else
     # if not exists, add to file end
     echo "" >> ./.env
