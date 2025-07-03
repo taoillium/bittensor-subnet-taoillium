@@ -9,8 +9,6 @@ load_dotenv(env_file_path, override=True)
 
 
 class Settings(BaseSettings):
-    VALIDATOR_HOST: str = os.getenv("VALIDATOR_HOST", "127.0.0.1")
-    VALIDATOR_API_PORT: int = int(os.getenv("VALIDATOR_API_PORT", "8080"))
     DETECT_IP: str = os.getenv("DETECT_IP", "8.8.8.8")
     SRV_API_URL: str = os.getenv("SRV_API_URL")
     SRV_API_KEY: str = os.getenv("SRV_API_KEY")

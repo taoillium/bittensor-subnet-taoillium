@@ -51,10 +51,7 @@ class Validator(BaseValidatorNeuron):
 
         bt.logging.info("load_state()")
         self.load_state()
-        self.http_thread = None
-        self.http_app = None
         
-        self.start_http_server()
 
     def register_with_business_server(self):
         """Register this neuron with the business server to establish authentication"""
@@ -65,54 +62,6 @@ class Validator(BaseValidatorNeuron):
         bt.logging.info(f"Register with business server result: {result}")
         # Store registration time for token refresh tracking
         self.last_token_refresh = time.time()
-
-    def start_http_server(self):
-        """start FastAPI HTTP server"""
-        app = FastAPI()
-        validator_self = self
-
-        @app.post("/task/receive")
-        async def receive(request: Request):
-            token = request.headers.get("Authorization", "")
-            if not verify_neuron_token(token):
-                return {"error": "Unauthorized"}
-            
-            data = await request.json()
-            if data is None:
-                return {"error": "Missing 'input' in request body"}
-            # here use run_coroutine_threadsafe
-            future = asyncio.run_coroutine_threadsafe(
-                validator_self.forward_with_input(data), validator_self.loop
-            )
-            responses = future.result()
-            return responses
-
-        def run():
-            # Add debug information
-            uvicorn.run(app, host=settings.VALIDATOR_HOST, port=settings.VALIDATOR_API_PORT, log_level="info")
-
-        self.http_app = app
-        self.http_thread = threading.Thread(target=run, daemon=True)
-        self.http_thread.start()
-        bt.logging.info(f"HTTP server started on host: {settings.VALIDATOR_HOST}, port {settings.VALIDATOR_API_PORT}")
-
-    async def forward_with_input(self, user_input):
-        miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
-        # Filter out validator's own uid
-        bt.logging.info(f"Miner uids: {miner_uids}, validator uid: {self.uid}")
-        miner_uids = [uid for uid in miner_uids if uid != self.uid]
-        if not miner_uids:
-            return {"error": "No available miners found"}
-            
-        responses = await self.dendrite(
-            axons=[self.metagraph.axons[uid] for uid in miner_uids],
-            synapse=protocol.ServiceProtocol(input=user_input),
-            deserialize=True,
-        )
-        bt.logging.info(f"[HTTP] Raw responses: {responses}")
-        # only return non-empty responses
-        outputs = [r for r in responses if r]
-        return outputs
 
     async def forward(self, synapse: protocol.ServiceProtocol) -> protocol.ServiceProtocol:
         """

@@ -34,16 +34,6 @@ else
     echo "VALIDATOR_PORT=8092" >> ./.env
 fi
 
-# if .env file exists VALIDATOR_API_PORT, update it
-if grep -q "VALIDATOR_API_PORT=" ./.env; then
-    # keep existing value
-    echo "VALIDATOR_API_PORT already exists in .env"
-else
-    # if not exists, add to file end
-    echo "" >> ./.env
-    echo "VALIDATOR_API_PORT=8080" >> ./.env
-fi
-
 source ./.env
 
 docker_image="bst-validator:${VERSION:-latest}"

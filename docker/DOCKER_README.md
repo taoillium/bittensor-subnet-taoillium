@@ -151,9 +151,6 @@ MANAGER_PORT=8000               # Manager service port
 MANAGER_DEBUG=INFO              # Log level
 MANAGER_RELOAD=false            # Auto-reload on code changes
 
-
-# Validator Configuration
-VALIDATOR_API_PORT=8080           # Port for validator instance
 ```
 
 ### Volume Mounts
