@@ -4,15 +4,15 @@ CURRENT_DIR="$(cd "$(dirname "$0")" && pwd)"
 action=${2:-""}
 
 deploy_manager() {
-    check_image_result=$($CURRENT_DIR/docker-manage.sh check)
+    check_image_result=$($CURRENT_DIR/docker-manager.sh check)
 
     # if docker image not found or force-build action, build docker image
     if [ "$check_image_result" == "" -o "$action" == "force-build" ]; then
         echo "docker image build..."
-        $CURRENT_DIR/docker-manage.sh build
+        $CURRENT_DIR/docker-manager.sh build
     fi
 
-    $CURRENT_DIR/docker-manage.sh run
+    $CURRENT_DIR/docker-manager.sh run
 }
 
 deploy_miner() {    

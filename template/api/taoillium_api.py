@@ -51,9 +51,46 @@ class TaoilliumAPI(SubnetsAPI):
         config.subtensor.network = network
         config.subtensor.chain_endpoint = chain_endpoint
         
+        # Debug: Print the actual config values
+        bt.logging.info(f"Config before subtensor creation:")
+        bt.logging.info(f"  config.subtensor.network = {config.subtensor.network}")
+        bt.logging.info(f"  config.subtensor.chain_endpoint = {config.subtensor.chain_endpoint}")
+        
+        # Force set environment variable to ensure Bittensor uses our chain_endpoint
+        import os
+        os.environ['BT_SUBTENSOR_CHAIN_ENDPOINT'] = chain_endpoint
+        bt.logging.info(f"Set BT_SUBTENSOR_CHAIN_ENDPOINT={chain_endpoint}")
+        
+        # Debug: Check if environment variable is set correctly
+        bt.logging.info(f"Environment BT_SUBTENSOR_CHAIN_ENDPOINT: {os.environ.get('BT_SUBTENSOR_CHAIN_ENDPOINT', 'NOT_SET')}")
+        
         # Create subtensor and metagraph with config
         bt.logging.info(f"Creating subtensor with config: network={config.subtensor.network}, chain_endpoint={config.subtensor.chain_endpoint}")
+        
+        # Debug: Print all config values before creating subtensor
+        bt.logging.info(f"Full config.subtensor values:")
+        for attr in dir(config.subtensor):
+            if not attr.startswith('_'):
+                try:
+                    value = getattr(config.subtensor, attr)
+                    bt.logging.info(f"  {attr}: {value}")
+                except:
+                    pass
+        
         self.subtensor = bt.subtensor(config=config)
+        
+        # Debug: Check what chain_endpoint the subtensor actually uses
+        bt.logging.info(f"Subtensor created with chain_endpoint: {self.subtensor.chain_endpoint}")
+        
+        # Force override the chain_endpoint if it's wrong
+        if self.subtensor.chain_endpoint != chain_endpoint:
+            bt.logging.warning(f"Subtensor chain_endpoint mismatch! Expected: {chain_endpoint}, Got: {self.subtensor.chain_endpoint}")
+            # Try to force set the chain_endpoint
+            try:
+                self.subtensor.chain_endpoint = chain_endpoint
+                bt.logging.info(f"Force set subtensor chain_endpoint to: {self.subtensor.chain_endpoint}")
+            except Exception as e:
+                bt.logging.error(f"Failed to force set chain_endpoint: {e}")
         self.metagraph = self.subtensor.metagraph(netuid=self.netuid)
         
         # Log metagraph info

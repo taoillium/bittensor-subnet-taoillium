@@ -123,14 +123,18 @@ def get_metagraph():
         # Set chain endpoint from settings
         if hasattr(settings, 'CHAIN_ENDPOINT') and settings.CHAIN_ENDPOINT:
             config.subtensor.chain_endpoint = settings.CHAIN_ENDPOINT
-        elif settings.CHAIN_NETWORK == "local":
-            config.subtensor.chain_endpoint = "ws://127.0.0.1:9944"
-        elif settings.CHAIN_NETWORK == "finney":
-            config.subtensor.chain_endpoint = "wss://entrypoint-finney.opentensor.ai:443"
-        elif settings.CHAIN_NETWORK == "test":
-            config.subtensor.chain_endpoint = "wss://test.opentensor.ai:443"
+        else:
+            # Use Bittensor defaults if CHAIN_ENDPOINT is not provided
+            # Don't override with hardcoded values, let Bittensor handle defaults
+            pass
         
         config.subtensor.network = settings.CHAIN_NETWORK
+        
+        # Force set environment variable to ensure Bittensor uses our chain_endpoint
+        import os
+        if hasattr(settings, 'CHAIN_ENDPOINT') and settings.CHAIN_ENDPOINT:
+            os.environ['BT_SUBTENSOR_CHAIN_ENDPOINT'] = settings.CHAIN_ENDPOINT
+            logger.info(f"Set BT_SUBTENSOR_CHAIN_ENDPOINT={settings.CHAIN_ENDPOINT}")
         
         # Create subtensor and metagraph with config
         subtensor = bt.subtensor(config=config)

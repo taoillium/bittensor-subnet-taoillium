@@ -16,6 +16,7 @@ services:
       - ./logs:/app/logs
     environment:
       - MANAGER_PORT=${MANAGER_PORT:-8000}
+      - BT_SUBTENSOR_CHAIN_ENDPOINT=${CHAIN_ENDPOINT:-ws://host.docker.internal:9944}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${MANAGER_PORT:-8000}/health"]

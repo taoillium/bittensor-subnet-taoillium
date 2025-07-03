@@ -16,7 +16,7 @@ services:
       - ./logs:/app/logs
     environment:
       - MINER_PORT=${MINER_PORT:-8091}
-      - BT_SUBTENSOR_CHAIN_ENDPOINT=ws://host.docker.internal:9944
+      - BT_SUBTENSOR_CHAIN_ENDPOINT=${CHAIN_ENDPOINT:-ws://host.docker.internal:9944}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped 

@@ -31,23 +31,36 @@ fi
 
 network=${CHAIN_NETWORK:-local}
 default_chain_endpoint=ws://127.0.0.1:9944
-if [ -f /.dockerenv ]; then
-    default_chain_endpoint="ws://host.docker.internal:9944"
-fi
+
+# Set default chain endpoint based on network type
 if [ "$network" == "finney" ]; then
     default_chain_endpoint=wss://entrypoint-finney.opentensor.ai
 elif [ "$network" == "test" ]; then
     default_chain_endpoint=wss://test.finney.opentensor.ai
+elif [ "$network" == "local" ] && [ -f /.dockerenv ]; then
+    # Only use host.docker.internal for local network in Docker
+    default_chain_endpoint="ws://host.docker.internal:9944"
 fi
 
 chain_endpoint=${CHAIN_ENDPOINT:-$default_chain_endpoint}
 http_endpoint=$(echo "$chain_endpoint" | sed -e 's/^ws:\/\//http:\/\//' -e 's/^wss:\/\//https:\/\//')
+
+# Extract host/IP from chain_endpoint
+if [ "$network" = "local" ]; then
+    # For local network, use the host from chain_endpoint
+    # Use awk for better compatibility across different systems
+    external_ip=$(echo "$chain_endpoint" | awk -F'://' '{print $2}' | awk -F':' '{print $1}')
+    if [ -z "$external_ip" ] || [ "$external_ip" = "$chain_endpoint" ]; then
+        external_ip="127.0.0.1"  # fallback
+    fi
+fi
 
 netuid=${CHAIN_NETUID:-2}
 echo "network: $network"
 echo "netuid: $netuid"
 echo "chain_endpoint: $chain_endpoint"
 echo "http_endpoint: $http_endpoint"
+echo "external_ip: $external_ip"
 
 ## check localnet
 # next steps need to check if the localnet is running

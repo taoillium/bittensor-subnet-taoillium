@@ -40,13 +40,15 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        default_chain_endpoint = "ws://127.0.0.1:9944"
-        if self.CHAIN_NETWORK == "finney":
-            default_chain_endpoint = "wss://entrypoint-finney.opentensor.ai"
-        elif self.CHAIN_NETWORK == "test":
-            default_chain_endpoint = "wss://test.finney.opentensor.ai"
-
-        self.CHAIN_ENDPOINT = self.CHAIN_ENDPOINT or default_chain_endpoint
+        # Only set default if CHAIN_ENDPOINT is not provided or empty
+        if not self.CHAIN_ENDPOINT or self.CHAIN_ENDPOINT.strip() == "":
+            default_chain_endpoint = "ws://127.0.0.1:9944"
+            if self.CHAIN_NETWORK == "finney":
+                default_chain_endpoint = "wss://entrypoint-finney.opentensor.ai"
+            elif self.CHAIN_NETWORK == "test":
+                default_chain_endpoint = "wss://test.finney.opentensor.ai"
+            
+            self.CHAIN_ENDPOINT = default_chain_endpoint
 
     class Config:
         case_sensitive = True
