@@ -78,6 +78,9 @@ case $1 in
     check)
         check_image
         ;;
+    logs)
+        docker-compose --env-file .env -f docker/docker-compose.manager.yml logs -f
+        ;;
     *)
         echo "Usage: $0 {build|run|stop|start|down|restart|check}"
         exit 1

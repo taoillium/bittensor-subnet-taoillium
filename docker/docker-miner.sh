@@ -90,7 +90,10 @@ case $1 in
     check)
         check_image
         ;;
+    logs)
+        docker-compose --env-file .env -f docker/docker-compose.miner.yml logs -f
+        ;;
     *)
-        echo "Usage: $0 {build|run|stop|start|down|restart|check}"
+        echo "Usage: $0 {build|run|stop|start|down|restart|check|logs}"
         exit 1
 esac 
