@@ -200,7 +200,7 @@ def verify_message(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/wallet_info")
+@router.get("/info")
 def get_wallet_status(
     wallet_name: str,
     hotkey_name: str = "default",
