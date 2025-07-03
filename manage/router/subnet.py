@@ -24,7 +24,7 @@ import bittensor as bt
 import logging
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from template.api import TaoilliumAPI
 from services.config import settings
 from services.security import verify_neuron_token, create_neuron_access_token
@@ -82,6 +82,7 @@ class HealthResponse(BaseModel):
 class TaskReceiveRequest(BaseModel):
     method: str
     data: Dict[str, Any]
+    uids: Optional[List[Union[int, str]]] = None
 
 
 # Global API client instance
@@ -162,6 +163,7 @@ async def task_receive(
         # Convert TaskReceiveRequest to the format expected by ServiceProtocol
         user_input = {
             "__type__": "miner",
+            "uids": request.uids,
             "sn": sn_gen(),
             "method": request.method,
             "data": request.data

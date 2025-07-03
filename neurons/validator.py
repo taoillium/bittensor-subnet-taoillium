@@ -126,7 +126,7 @@ class Validator(BaseValidatorNeuron):
         """
         bt.logging.debug(f"Validator forward synapse.input: {synapse}")
         if synapse.input.get("__type__") == "miner":
-            synapse.output = {"error": "skip miner task", "uid": self.uid}
+            synapse.output = {"error": "validator skip miner task", "uid": self.uid}
             return synapse
 
         # get_random_uids is an example method, but you can replace it with your own.
