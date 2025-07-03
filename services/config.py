@@ -25,10 +25,6 @@ class Settings(BaseSettings):
     CHAIN_NETUID: int = int(os.getenv("CHAIN_NETUID", "2"))
     VALIDATOR_SLEEP_TIME: int = int(os.getenv("VALIDATOR_SLEEP_TIME", "1"))
 
-    # API Server configuration
-    API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
-    API_PORT: int = int(os.getenv("API_PORT", "8000"))
-
     # Manager service configuration
     MANAGER_HOST: str = os.getenv("MANAGER_HOST", "0.0.0.0")
     MANAGER_PORT: int = int(os.getenv("MANAGER_PORT", "8000"))
