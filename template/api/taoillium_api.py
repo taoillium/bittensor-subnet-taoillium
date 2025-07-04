@@ -150,11 +150,19 @@ class TaoilliumAPI(SubnetsAPI):
             List[Dict]: Processed responses from network nodes
         """
         if user_input.get("uids"):
-            axons = [self.metagraph.axons[int(uid)] for uid in user_input["uids"]]
+            uids = [int(uid) for uid in user_input["uids"]]
+            axons = [self.metagraph.axons[uid] for uid in uids]
         else:
             if use_random_selection:
                 # Use random selection like forward_with_input
                 axons = await self.get_miner_uids_with_ping(sample_size)
+                # Get UIDs by finding the index of each axon in the metagraph
+                uids = []
+                for axon in axons:
+                    for uid in range(len(self.metagraph.axons)):
+                        if self.metagraph.axons[uid] == axon:
+                            uids.append(uid)
+                            break
             else:
                 # Get available axons to query (based on stake ranking)
                 axons = await get_query_api_axons(
@@ -163,14 +171,23 @@ class TaoilliumAPI(SubnetsAPI):
                     n=0.1,  # Top 10% of nodes by stake
                     timeout=timeout
                 )
+                # Get UIDs by finding the index of each axon in the metagraph
+                uids = []
+                for axon in axons:
+                    for uid in range(len(self.metagraph.axons)):
+                        if self.metagraph.axons[uid] == axon:
+                            uids.append(uid)
+                            break
         
         # Limit the number of axons to query
         if len(axons) > sample_size:
             axons = axons[:sample_size]
+            uids = uids[:sample_size]
             
         if not axons:
             raise Exception("No available nodes found")
 
+        user_input["uids"] = uids
         bt.logging.debug(f"query_network user_input: {user_input}")
         # Prepare the synapse
         synapse = self.prepare_synapse(user_input)
