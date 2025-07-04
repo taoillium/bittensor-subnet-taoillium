@@ -20,8 +20,6 @@ from typing import List, Union, Any, Dict
 from bittensor import SubnetsAPI
 import services.protocol as protocol
 from template.api.get_query_axons import get_query_api_axons
-from services.config import settings
-from services.api import get_local_ip
 
 
 class TaoilliumAPI(SubnetsAPI):
@@ -379,48 +377,12 @@ class TaoilliumAPI(SubnetsAPI):
         bt.logging.debug(f"Successful UIDs: {successful_uids}")
         return successful_uids
 
-    def _get_fixed_axons(self, axons):
+    def _fix_metagraph_axons(self, uids):
         """
-        Temporarily fix axon IPs for dendrite calls without modifying metagraph
+        Temporarily fix axon IPs in the metagraph for the given UIDs
         The root cause of this is that the axon IPs are 0.0.0.0 when the manager is running on the same server as the axon.
         code is from /bittensor/core/dendrite.py:_get_endpoint_url https://github.com/opentensor/bittensor/blob/master/bittensor/core/dendrite.py#L239
         """
-        import copy
-        fixed_axons = []
-        
-        bt.logging.debug(f"_get_fixed_axons called with {len(axons)} axons")
-        
-        for i, axon in enumerate(axons):
-            bt.logging.debug(f"Original axon {i}: {axon.ip}:{axon.port}")
-            
-            # Debug: Check all attributes of the axon object
-            bt.logging.debug(f"Axon {i} attributes: {dir(axon)}")
-            bt.logging.debug(f"Axon {i} __dict__: {axon.__dict__}")
-            bt.logging.debug(f"Axon {i} ip_str: {getattr(axon, 'ip_str', 'N/A')}")
-            
-            # Only fix IP if it's 0.0.0.0 (which means it's on the same server as manager)
-            if axon.ip == "0.0.0.0":
-                local_ip = get_local_ip()  # Manager's public IP
-                # Create a new axon object with the fixed IP
-                fixed_axon = bt.axon(
-                    ip=local_ip,
-                    port=axon.port,
-                    ip_type=axon.ip_type,
-                    protocol=axon.protocol
-                )
-                bt.logging.debug(f"Temporarily fixing axon IP from 0.0.0.0 to {fixed_axon.ip} (get_local_ip returned: {local_ip})")
-            else:
-                # Create a copy to avoid modifying the original metagraph
-                fixed_axon = copy.deepcopy(axon)
-                bt.logging.debug(f"Axon {i} IP {fixed_axon.ip} is not 0.0.0.0, no fix needed")
-            
-            fixed_axons.append(fixed_axon)
-        
-        bt.logging.debug(f"Returning {len(fixed_axons)} fixed axons")
-        return fixed_axons
-
-    def _fix_metagraph_axons(self, uids):
-        """Temporarily fix axon IPs in the metagraph for the given UIDs"""
         bt.logging.debug(f"_fix_metagraph_axons called with UIDs: {uids}")
         
         # Store original IPs to restore later
