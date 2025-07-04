@@ -192,16 +192,23 @@ class TaoilliumAPI(SubnetsAPI):
         # Prepare the synapse
         synapse = self.prepare_synapse(user_input)
         
-        # Temporarily fix axon IPs for dendrite calls
-        fixed_axons = self._get_fixed_axons(axons)
+        # Temporarily fix axon IPs in the metagraph
+        original_ips = self._fix_metagraph_axons(uids)
         
-        # Query the network with fixed axons
-        responses = await self.dendrite(
-            axons=fixed_axons,
-            synapse=synapse,
-            deserialize=True,
-            timeout=timeout
-        )
+        try:
+            # Get axons from metagraph (which now have fixed IPs)
+            axons = [self.metagraph.axons[uid] for uid in uids]
+            
+            # Query the network with fixed axons
+            responses = await self.dendrite(
+                axons=axons,
+                synapse=synapse,
+                deserialize=True,
+                timeout=timeout
+            )
+        finally:
+            # Always restore original IPs
+            self._restore_metagraph_axons(original_ips)
         bt.logging.info(f"axons: {axons}")
         bt.logging.info(f"Received responses: {responses}")
         # Process and return the responses
@@ -335,27 +342,26 @@ class TaoilliumAPI(SubnetsAPI):
         return selected_uids
 
     async def ping_uids(self, uids, timeout=10):
-        axons = [self.metagraph.axons[uid] for uid in uids]
+        # Temporarily fix axon IPs in the metagraph
+        original_ips = self._fix_metagraph_axons(uids)
         
-        # Debug: Print axon details before pinging
-        bt.logging.debug(f"Pinging axons:")
-        for uid, axon in zip(uids, axons):
-            bt.logging.debug(f"  UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
-        
-        # Temporarily fix axon IPs for dendrite calls
-        fixed_axons = self._get_fixed_axons(axons)
-        
-        # Debug: Print fixed axon details
-        bt.logging.debug(f"Fixed axon details before dendrite call:")
-        for uid, axon in zip(uids, fixed_axons):
-            bt.logging.debug(f"  UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
-        
-        # Additional debug: Check if any axons still have 0.0.0.0
-        for i, axon in enumerate(fixed_axons):
-            if axon.ip == "0.0.0.0":
-                bt.logging.warning(f"Fixed axon {i} still has IP 0.0.0.0!")
-        
-        responses = await self.dendrite(fixed_axons, bt.Synapse(), deserialize=False, timeout=timeout)
+        try:
+            axons = [self.metagraph.axons[uid] for uid in uids]
+            
+            # Debug: Print axon details before pinging
+            bt.logging.debug(f"Pinging axons:")
+            for uid, axon in zip(uids, axons):
+                bt.logging.debug(f"  UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
+            
+            # Debug: Check what we're passing to dendrite
+            bt.logging.debug(f"Passing {len(axons)} axons to dendrite:")
+            for i, axon in enumerate(axons):
+                bt.logging.debug(f"  Dendrite axon {i}: {axon.ip}:{axon.port}")
+            
+            responses = await self.dendrite(axons, bt.Synapse(), deserialize=False, timeout=timeout)
+        finally:
+            # Always restore original IPs
+            self._restore_metagraph_axons(original_ips)
         
         # Debug: Print response details
         for uid, response in zip(uids, responses):
@@ -374,7 +380,11 @@ class TaoilliumAPI(SubnetsAPI):
         return successful_uids
 
     def _get_fixed_axons(self, axons):
-        """Temporarily fix axon IPs for dendrite calls without modifying metagraph"""
+        """
+        Temporarily fix axon IPs for dendrite calls without modifying metagraph
+        The root cause of this is that the axon IPs are 0.0.0.0 when the manager is running on the same server as the axon.
+        code is from /bittensor/core/dendrite.py:_get_endpoint_url https://github.com/opentensor/bittensor/blob/master/bittensor/core/dendrite.py#L239
+        """
         import copy
         fixed_axons = []
         
@@ -382,6 +392,11 @@ class TaoilliumAPI(SubnetsAPI):
         
         for i, axon in enumerate(axons):
             bt.logging.debug(f"Original axon {i}: {axon.ip}:{axon.port}")
+            
+            # Debug: Check all attributes of the axon object
+            bt.logging.debug(f"Axon {i} attributes: {dir(axon)}")
+            bt.logging.debug(f"Axon {i} __dict__: {axon.__dict__}")
+            bt.logging.debug(f"Axon {i} ip_str: {getattr(axon, 'ip_str', 'N/A')}")
             
             # Only fix IP if it's 0.0.0.0 (which means it's on the same server as manager)
             if axon.ip == "0.0.0.0":
@@ -403,3 +418,52 @@ class TaoilliumAPI(SubnetsAPI):
         
         bt.logging.debug(f"Returning {len(fixed_axons)} fixed axons")
         return fixed_axons
+
+    def _fix_metagraph_axons(self, uids):
+        """Temporarily fix axon IPs in the metagraph for the given UIDs"""
+        bt.logging.debug(f"_fix_metagraph_axons called with UIDs: {uids}")
+        
+        # Store original IPs to restore later
+        original_ips = {}
+        
+        # Get dendrite's external IP to check for conflicts
+        dendrite_external_ip = getattr(self.dendrite, 'external_ip', None)
+        bt.logging.debug(f"Dendrite external_ip: {dendrite_external_ip}")
+        
+        # Store original dendrite external_ip to restore later
+        original_dendrite_external_ip = dendrite_external_ip
+        
+        for uid in uids:
+            axon = self.metagraph.axons[uid]
+            bt.logging.debug(f"UID {uid} axon IP: {axon.ip}")
+            
+            # Fix IP if it's 0.0.0.0 or if it conflicts with dendrite's external_ip
+            if axon.ip == "0.0.0.0" or (dendrite_external_ip and axon.ip == str(dendrite_external_ip)):
+                # Temporarily change dendrite's external_ip to avoid conflict
+                if hasattr(self.dendrite, 'external_ip'):
+                    self.dendrite.external_ip = "127.0.0.1"  # Use localhost to avoid conflict
+                    bt.logging.debug(f"Temporarily changed dendrite external_ip from {original_dendrite_external_ip} to {self.dendrite.external_ip}")
+                original_ips[uid] = axon.ip
+                bt.logging.debug(f"Detected IP conflict for UID {uid}: axon.ip={axon.ip}, original dendrite.external_ip={original_dendrite_external_ip}")
+            else:
+                bt.logging.debug(f"Metagraph axon UID {uid} IP {axon.ip} is not 0.0.0.0 and doesn't conflict with dendrite external_ip, no fix needed")
+        
+        # Store the original dendrite external_ip in the return dict with a special key
+        original_ips['_dendrite_external_ip'] = original_dendrite_external_ip
+        
+        return original_ips
+
+    def _restore_metagraph_axons(self, original_ips):
+        """Restore original axon IPs in the metagraph and dendrite external_ip"""
+        # Restore dendrite external_ip if it was modified
+        if '_dendrite_external_ip' in original_ips:
+            original_dendrite_external_ip = original_ips['_dendrite_external_ip']
+            if hasattr(self.dendrite, 'external_ip'):
+                self.dendrite.external_ip = original_dendrite_external_ip
+                bt.logging.debug(f"Restored dendrite external_ip to {original_dendrite_external_ip}")
+        
+        # Restore axon IPs
+        for uid, original_ip in original_ips.items():
+            if uid != '_dendrite_external_ip':  # Skip the special key
+                self.metagraph.axons[uid].ip = original_ip
+                bt.logging.debug(f"Restored metagraph axon UID {uid} IP to {original_ip}")
