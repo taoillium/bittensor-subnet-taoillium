@@ -21,6 +21,7 @@ from bittensor import SubnetsAPI
 import services.protocol as protocol
 from template.api.get_query_axons import get_query_api_axons
 from services.config import settings
+from services.api import get_local_ip
 
 
 class TaoilliumAPI(SubnetsAPI):
@@ -174,9 +175,12 @@ class TaoilliumAPI(SubnetsAPI):
         # Prepare the synapse
         synapse = self.prepare_synapse(user_input)
         
-        # Query the network
+        # Temporarily fix axon IPs for dendrite calls
+        fixed_axons = self._get_fixed_axons(axons)
+        
+        # Query the network with fixed axons
         responses = await self.dendrite(
-            axons=axons,
+            axons=fixed_axons,
             synapse=synapse,
             deserialize=True,
             timeout=timeout
@@ -320,19 +324,16 @@ class TaoilliumAPI(SubnetsAPI):
         bt.logging.debug(f"Pinging axons:")
         for uid, axon in zip(uids, axons):
             bt.logging.debug(f"  UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
-            # Force set the correct IP if it's 0.0.0.0
-            if axon.ip == "0.0.0.0":
-                # Try to get the real IP from the metagraph
-                real_ip = "47.129.35.160"  # Your server's public IP
-                bt.logging.warning(f"  UID {uid}: Forcing IP from {axon.ip} to {real_ip}")
-                axon.ip = real_ip
         
-        # Debug: Print axon details after potential IP fix
-        bt.logging.debug(f"Final axon details before dendrite call:")
-        for uid, axon in zip(uids, axons):
+        # Temporarily fix axon IPs for dendrite calls
+        fixed_axons = self._get_fixed_axons(axons)
+        
+        # Debug: Print fixed axon details
+        bt.logging.debug(f"Fixed axon details before dendrite call:")
+        for uid, axon in zip(uids, fixed_axons):
             bt.logging.debug(f"  UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
         
-        responses = await self.dendrite(axons, bt.Synapse(), deserialize=False, timeout=timeout)
+        responses = await self.dendrite(fixed_axons, bt.Synapse(), deserialize=False, timeout=timeout)
         
         # Debug: Print response details
         for uid, response in zip(uids, responses):
@@ -349,3 +350,21 @@ class TaoilliumAPI(SubnetsAPI):
         
         bt.logging.debug(f"Successful UIDs: {successful_uids}")
         return successful_uids
+
+    def _get_fixed_axons(self, axons):
+        """Temporarily fix axon IPs for dendrite calls without modifying metagraph"""
+        import copy
+        fixed_axons = []
+        
+        for axon in axons:
+            # Create a copy to avoid modifying the original metagraph
+            fixed_axon = copy.deepcopy(axon)
+            
+            # Only fix IP if it's 0.0.0.0 (which means it's on the same server as manager)
+            if fixed_axon.ip == "0.0.0.0":
+                fixed_axon.ip = get_local_ip()  # Manager's public IP
+                bt.logging.debug(f"Temporarily fixing axon IP from 0.0.0.0 to {fixed_axon.ip}")
+            
+            fixed_axons.append(fixed_axon)
+        
+        return fixed_axons
