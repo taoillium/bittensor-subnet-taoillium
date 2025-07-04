@@ -350,6 +350,11 @@ class TaoilliumAPI(SubnetsAPI):
         for uid, axon in zip(uids, fixed_axons):
             bt.logging.debug(f"  UID {uid}: {axon.ip}:{axon.port} (serving: {axon.is_serving})")
         
+        # Additional debug: Check if any axons still have 0.0.0.0
+        for i, axon in enumerate(fixed_axons):
+            if axon.ip == "0.0.0.0":
+                bt.logging.warning(f"Fixed axon {i} still has IP 0.0.0.0!")
+        
         responses = await self.dendrite(fixed_axons, bt.Synapse(), deserialize=False, timeout=timeout)
         
         # Debug: Print response details
@@ -373,15 +378,28 @@ class TaoilliumAPI(SubnetsAPI):
         import copy
         fixed_axons = []
         
-        for axon in axons:
-            # Create a copy to avoid modifying the original metagraph
-            fixed_axon = copy.deepcopy(axon)
+        bt.logging.debug(f"_get_fixed_axons called with {len(axons)} axons")
+        
+        for i, axon in enumerate(axons):
+            bt.logging.debug(f"Original axon {i}: {axon.ip}:{axon.port}")
             
             # Only fix IP if it's 0.0.0.0 (which means it's on the same server as manager)
-            if fixed_axon.ip == "0.0.0.0":
-                fixed_axon.ip = get_local_ip()  # Manager's public IP
-                bt.logging.debug(f"Temporarily fixing axon IP from 0.0.0.0 to {fixed_axon.ip}")
+            if axon.ip == "0.0.0.0":
+                local_ip = get_local_ip()  # Manager's public IP
+                # Create a new axon object with the fixed IP
+                fixed_axon = bt.axon(
+                    ip=local_ip,
+                    port=axon.port,
+                    ip_type=axon.ip_type,
+                    protocol=axon.protocol
+                )
+                bt.logging.debug(f"Temporarily fixing axon IP from 0.0.0.0 to {fixed_axon.ip} (get_local_ip returned: {local_ip})")
+            else:
+                # Create a copy to avoid modifying the original metagraph
+                fixed_axon = copy.deepcopy(axon)
+                bt.logging.debug(f"Axon {i} IP {fixed_axon.ip} is not 0.0.0.0, no fix needed")
             
             fixed_axons.append(fixed_axon)
         
+        bt.logging.debug(f"Returning {len(fixed_axons)} fixed axons")
         return fixed_axons
