@@ -23,7 +23,7 @@ This router provides endpoints for interacting with the subnet network.
 import bittensor as bt
 import logging
 from fastapi import APIRouter, HTTPException, Request, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, RootModel
 from typing import Dict, Any, List, Optional, Union
 from template.api import TaoilliumAPI
 from services.config import settings
@@ -79,10 +79,19 @@ class HealthResponse(BaseModel):
     message: str
     network_info: Optional[Dict[str, Any]] = None
 
-class TaskReceiveRequest(BaseModel):
-    method: str
-    data: Dict[str, Any]
-    uids: Optional[List[Union[int, str]]] = None
+class TaskReceiveRequest(RootModel[Dict[str, Any]]):
+    
+    @property
+    def method(self) -> str:
+        return self.root.get("method", "")
+    
+    @property
+    def data(self) -> Dict[str, Any]:
+        return self.root.get("data", {})
+    
+    @property
+    def uids(self) -> Optional[List[Union[int, str]]]:
+        return self.root.get("uids")
 
 
 # Global API client instance
