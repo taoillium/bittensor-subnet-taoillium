@@ -79,19 +79,10 @@ class HealthResponse(BaseModel):
     message: str
     network_info: Optional[Dict[str, Any]] = None
 
-class TaskReceiveRequest(RootModel[Dict[str, Any]]):
-    
-    @property
-    def method(self) -> str:
-        return self.root.get("method", "")
-    
-    @property
-    def data(self) -> Dict[str, Any]:
-        return self.root.get("data", {})
-    
-    @property
-    def uids(self) -> Optional[List[Union[int, str]]]:
-        return self.root.get("uids")
+class TaskReceiveRequest(BaseModel):
+    method: str = Field(description="The method to be called")
+    data: Dict[str, Any] = Field(default_factory=dict, description="The data payload")
+    uids: Optional[List[Union[int, str]]] = Field(default=None, description="List of UIDs to target")
 
 
 # Global API client instance

@@ -148,7 +148,17 @@ class TaoilliumAPI(SubnetsAPI):
             List[Dict]: Processed responses from network nodes
         """
         if user_input.get("uids"):
-            uids = [int(uid) for uid in user_input["uids"]]
+            # Convert UIDs to integers, filtering out any non-numeric values
+            uids = []
+            for uid in user_input["uids"]:
+                try:
+                    uids.append(int(uid))
+                except (ValueError, TypeError):
+                    raise Exception(f"Skipping invalid UID: {uid} (must be an integer)")
+            
+            if not uids:
+                raise Exception("No valid UIDs provided")
+                
             axons = [self.metagraph.axons[uid] for uid in uids]
         else:
             if use_random_selection:
