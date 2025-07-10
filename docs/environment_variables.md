@@ -191,6 +191,34 @@ Environment variables are configured through a `.env` file in the project root d
 - **Default**: Auto-configured from directory name
 - **Usage**: Unique identifier for validator instances
 
+#### `VALIDATOR_WALLET`
+- **Description**: Wallet name for the validator service
+- **Type**: String
+- **Required**: No
+- **Default**: Falls back to WALLET_NAME, then "validator"
+- **Usage**: Specifies which wallet to use for validator operations
+
+#### `VALIDATOR_HOTKEY`
+- **Description**: Hotkey name for the validator service
+- **Type**: String
+- **Required**: No
+- **Default**: Falls back to HOTKEY_NAME, then "default"
+- **Usage**: Specifies which hotkey to use for validator signing operations
+
+#### `MINER_WALLET`
+- **Description**: Wallet name for the miner service
+- **Type**: String
+- **Required**: No
+- **Default**: Falls back to WALLET_NAME, then "miner"
+- **Usage**: Specifies which wallet to use for miner operations
+
+#### `MINER_HOTKEY`
+- **Description**: Hotkey name for the miner service
+- **Type**: String
+- **Required**: No
+- **Default**: Falls back to HOTKEY_NAME, then "default"
+- **Usage**: Specifies which hotkey to use for miner signing operations
+
 ## Example .env File
 
 ```bash
@@ -230,6 +258,12 @@ MINER_PORT=8091
 VALIDATOR_PORT=8092
 MINER_NAME=my-miner
 VALIDATOR_NAME=my-validator
+
+# Service-Specific Wallet Configuration
+VALIDATOR_WALLET=validator
+VALIDATOR_HOTKEY=default
+MINER_WALLET=miner
+MINER_HOTKEY=default
 ```
 
 ## Important Notes
