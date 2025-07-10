@@ -20,6 +20,16 @@ Environment variables are configured through a `.env` file in the project root d
 - **Important**: **Obtain and set this token before starting nodes to ensure proper authentication**
 - **Usage**: Used by both MinerClient and ValidatorClient for API authentication
 
+#### `SRV_API_KEY_{HOTKEY_ADDRESS}`
+- **Description**: Hotkey-specific authentication token for Taoillium.ai API services
+- **Type**: String
+- **Required**: No (falls back to `SRV_API_KEY`)
+- **Default**: None
+- **Format**: `SRV_API_KEY_` + hotkey SS58 address (e.g., `SRV_API_KEY_5F...`)
+- **Priority**: Higher priority than `SRV_API_KEY` - if both exist, the hotkey-specific version is used
+- **Usage**: Allows different API keys for different hotkeys/neurons on the same system
+- **Example**: `SRV_API_KEY_5F...` for a specific hotkey address
+
 #### `SRV_API_URL`
 - **Description**: Base URL for Taoillium.ai API services
 - **Type**: String
@@ -224,6 +234,8 @@ Environment variables are configured through a `.env` file in the project root d
 ```bash
 # Authentication & API Configuration
 SRV_API_KEY=your_taoillium_api_key_here
+# Optional: Hotkey-specific API keys (replace HOTKEY_ADDRESS with actual SS58 address)
+# SRV_API_KEY_5F...=your_specific_hotkey_api_key_here
 SRV_API_URL=https://api.taoillium.ai
 DETECT_IP=8.8.8.8
 
@@ -268,11 +280,33 @@ MINER_HOTKEY=default
 
 ## Important Notes
 
+### Multi-Neuron Support with Hotkey-Specific API Keys
+
+The system supports running multiple neurons on the same system, each using different API keys. This is achieved through the `SRV_API_KEY_{HOTKEY_ADDRESS}` environment variable format.
+
+#### Benefits of Multi-Neuron Support:
+1. **Multiple Neurons**: Run multiple validators and miners on the same system with different API keys
+2. **Enhanced Security**: Use different authentication credentials for different hotkeys
+3. **Flexibility**: Choose between global API keys or hotkey-specific keys
+4. **Backward Compatibility**: Falls back to the general `SRV_API_KEY` if no hotkey-specific key is set
+
+#### Usage Example:
+```bash
+# Global API key (used as fallback)
+SRV_API_KEY=your_global_api_key_here
+
+# Hotkey-specific API keys (replace with actual SS58 addresses)
+SRV_API_KEY_5F...=your_first_hotkey_api_key_here
+SRV_API_KEY_5G...=your_second_hotkey_api_key_here
+```
+
 ### SRV_API_KEY Requirements
 1. **Registration Required**: You must register at [taoillium.ai](https://taoillium.ai) to obtain an API key
 2. **Token Expiration**: The default expiration time is 30 minutes
 3. **Pre-launch Setup**: **It is recommended to obtain and set this token before starting any nodes**
 4. **Authentication**: This token is used for all API interactions with Taoillium services
+5. **Hotkey-Specific Keys**: You can set different API keys for different hotkeys using `SRV_API_KEY_{HOTKEY_ADDRESS}` format
+6. **Priority**: Hotkey-specific keys take precedence over the general `SRV_API_KEY`
 
 ### Network Configuration
 - For **local development**: Use `CHAIN_NETWORK=local`
@@ -292,6 +326,7 @@ MINER_HOTKEY=default
 2. **Token Expired**: Re-authenticate and obtain a new token if the current one has expired
 3. **Network Connection**: Verify CHAIN_ENDPOINT is accessible and correct for your network
 4. **Port Conflicts**: Ensure MINER_PORT and VALIDATOR_PORT are not in use by other services
+5. **Hotkey-Specific API Keys**: If using `SRV_API_KEY_{HOTKEY_ADDRESS}`, ensure the hotkey address is correct and the environment variable is properly set
 
 ### Validation
 The configuration is validated by Pydantic Settings, which will raise clear error messages for invalid configurations. 
