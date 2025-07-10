@@ -19,6 +19,7 @@ import copy
 import typing
 import time
 import bittensor as bt
+import os
 
 from abc import ABC, abstractmethod
 
@@ -99,6 +100,11 @@ class BaseNeuron(ABC):
         bt.logging.info(f"Hotkey Address: {self.wallet.hotkey.ss58_address}")
         bt.logging.info(f"Subtensor: {self.subtensor}")
         bt.logging.info(f"Metagraph: {self.metagraph}")
+
+        my_srv_api_key = f"SRV_API_KEY_{self.wallet.hotkey.ss58_address}"
+        if os.getenv(my_srv_api_key):
+            settings.SRV_API_KEY = os.getenv(my_srv_api_key)
+            bt.logging.info(f"Using SRV_API_KEY from environment variable: {my_srv_api_key}")
 
         # Check if the miner is registered on the Bittensor network before proceeding further.
         self.check_registered()
