@@ -5,7 +5,13 @@ source "${CURRENT_DIR}/env.sh"
 cd $CURRENT_DIR/../
 MINER_PORT=${MINER_PORT:-8091}
 port=${1:-$MINER_PORT}
+
+# Set miner wallet with fallback chain: MINER_WALLET -> WALLET_NAME -> validator
+MINER_WALLET=${MINER_WALLET:-$WALLET_NAME}
 MINER_WALLET=${MINER_WALLET:-miner}
+
+# Set miner hotkey with fallback chain: MINER_HOTKEY -> HOTKEY_NAME -> default
+MINER_HOTKEY=${MINER_HOTKEY:-$HOTKEY_NAME}
 MINER_HOTKEY=${MINER_HOTKEY:-default}
 
 # Build axon.external_ip parameter based on network

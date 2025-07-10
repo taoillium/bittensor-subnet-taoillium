@@ -5,7 +5,13 @@ source "${CURRENT_DIR}/env.sh"
 cd $CURRENT_DIR/../
 VALIDATOR_PORT=${VALIDATOR_PORT:-8092}
 port=${1:-$VALIDATOR_PORT}
+
+# Set validator wallet with fallback chain: VALIDATOR_WALLET -> WALLET_NAME -> validator
+VALIDATOR_WALLET=${VALIDATOR_WALLET:-$WALLET_NAME}
 VALIDATOR_WALLET=${VALIDATOR_WALLET:-validator}
+
+# Set validator hotkey with fallback chain: VALIDATOR_HOTKEY -> HOTKEY_NAME -> default
+VALIDATOR_HOTKEY=${VALIDATOR_HOTKEY:-$HOTKEY_NAME}
 VALIDATOR_HOTKEY=${VALIDATOR_HOTKEY:-default}
 
 # Build axon.external_ip parameter based on network
