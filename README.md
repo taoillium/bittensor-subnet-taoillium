@@ -177,6 +177,8 @@ The project uses environment-based configuration through `services/config.py`. K
 - **Authentication**: JWT tokens and wallet credentials
 - **Compute Requirements**: Minimum resource specifications
 
+For detailed environment variable documentation, see [Environment Variables Guide](./docs/environment_variables.md).
+
 ## Development
 
 ### Extending the Subnet
