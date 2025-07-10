@@ -27,7 +27,6 @@ from pydantic import BaseModel, Field, RootModel
 from typing import Dict, Any, List, Optional, Union
 from template.api import TaoilliumAPI
 from services.config import settings
-from services.security import verify_neuron_token, create_neuron_access_token
 from template.utils.misc import sn_gen
 
 router = APIRouter(prefix="/subnet", tags=["subnet"])

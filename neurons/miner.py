@@ -20,10 +20,8 @@ import time
 import typing
 import bittensor as bt
 
-from services.api import MinerClient
+from services.api import ServiceApiClient
 import services.protocol as protocol
-from services.security import create_neuron_access_token
-from services.config import settings
 
 # import base miner class which takes care of most of the boilerplate
 from template.base.miner import BaseMinerNeuron
@@ -37,16 +35,6 @@ class Miner(BaseMinerNeuron):
     def __init__(self, config=None):
         super(Miner, self).__init__(config=config)
 
-
-    def register_with_business_server(self):
-        """Register this neuron with the business server to establish authentication"""
-        data = {"uid": self.uid, "chain": "bittensor", "netuid": self.config.netuid, "type": "miner", "account": self.wallet.hotkey.ss58_address}
-        data["token"] = create_neuron_access_token(data=data)
-        client = MinerClient()
-        result = client.post("/sapi/node/neuron/register", json=data)
-        bt.logging.info(f"Register with business server result: {result}")
-        # Store registration time for token refresh tracking
-        self.last_token_refresh = time.time()
 
     async def forward(self, synapse: protocol.ServiceProtocol) -> protocol.ServiceProtocol:
         """
@@ -67,7 +55,7 @@ class Miner(BaseMinerNeuron):
         if synapse.input.get("__type__") == "health":
             synapse.output = {"method": "health", "success": True, "uid": self.uid, "device": self.device}
         else:
-            client = MinerClient()
+            client = ServiceApiClient(self.current_api_key_value)
             synapse.input["uid"] = self.uid
             response = client.post("/sapi/node/task/create", json=synapse.input)
             synapse.output = response

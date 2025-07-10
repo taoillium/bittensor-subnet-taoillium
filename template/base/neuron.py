@@ -20,6 +20,8 @@ import typing
 import time
 import bittensor as bt
 import os
+import signal
+import sys
 
 from abc import ABC, abstractmethod
 
@@ -30,6 +32,8 @@ from template import __spec_version__ as spec_version
 from template.mock import MockSubtensor, MockMetagraph
 from websockets.protocol import State as WebSocketClientState
 from services.config import settings
+from services.api import ServiceApiClient
+from services.security import create_neuron_access_token
 
 
 class BaseNeuron(ABC):
@@ -102,9 +106,21 @@ class BaseNeuron(ABC):
         bt.logging.info(f"Metagraph: {self.metagraph}")
 
         my_srv_api_key = f"SRV_API_KEY_{self.wallet.hotkey.ss58_address}"
+        self.current_api_key_name = None
+        self.current_api_key_value = None
+        
         if os.getenv(my_srv_api_key):
             settings.SRV_API_KEY = os.getenv(my_srv_api_key)
+            self.current_api_key_value = settings.SRV_API_KEY
+            self.current_api_key_name = my_srv_api_key
             bt.logging.info(f"Using SRV_API_KEY from environment variable: {my_srv_api_key}")
+        elif os.getenv("SRV_API_KEY"):
+            self.current_api_key_value = os.getenv("SRV_API_KEY")
+            self.current_api_key_name = "SRV_API_KEY"
+            bt.logging.info("Using SRV_API_KEY from environment variable: SRV_API_KEY")
+
+        # Set up signal handlers for graceful shutdown
+        self._setup_signal_handlers()
 
         # Check if the miner is registered on the Bittensor network before proceeding further.
         self.check_registered()
@@ -118,7 +134,8 @@ class BaseNeuron(ABC):
         )
         self.step = 0
 
-        self.last_token_refresh = 0
+        self.last_server_business_token_expire = time.time() +  60  # 1 minutes from now
+        self.last_server_api_key_expire = time.time() +  60  # 1 minutes from now
 
         # Set epoch length from chain during initialization
         self._set_epoch_length_from_chain()
@@ -170,9 +187,6 @@ class BaseNeuron(ABC):
     async def forward(self, synapse: bt.Synapse) -> bt.Synapse:
         ...
 
-    @abstractmethod
-    def register_with_business_server(self):
-        ...
 
     @abstractmethod
     def run(self):
@@ -196,22 +210,10 @@ class BaseNeuron(ABC):
         # Always save state.
         self.save_state()
 
-        # Refresh business server token if needed
         self.refresh_business_server_token()
 
-    
-    def should_refresh_token(self) -> bool:
-        """Check if the business server token needs to be refreshed"""
-        
-        # Refresh token 5 minutes before expiration (30 - 5 = 25 minutes)
-        token_refresh_interval = (settings.NEURON_JWT_EXPIRE_IN - 5) * 60  # Convert to seconds
-        return (time.time() - self.last_token_refresh) > token_refresh_interval
+        self.refresh_server_api_key()
 
-    def refresh_business_server_token(self):
-        """Refresh the business server token to maintain authentication"""
-        if self.should_refresh_token():
-            bt.logging.info("Refreshing business server token")
-            self.register_with_business_server()
 
     def check_registered(self):
         # --- Check for registration.
@@ -256,7 +258,7 @@ class BaseNeuron(ABC):
         return (
             (self.block - self.metagraph.last_update[self.uid])
             > self.get_epoch_length()
-            and self.neuron_type != "MinerNeuron"
+            and self.neuron_type != "miner"
         )  # don't set weights if you're a miner
 
     def save_state(self):
@@ -268,3 +270,90 @@ class BaseNeuron(ABC):
         bt.logging.trace(
             "load_state() not implemented for this neuron. You can implement this function to load model checkpoints or other useful data."
         )
+
+    def _setup_signal_handlers(self):
+        """Set up signal handlers for graceful shutdown"""
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+
+    def _signal_handler(self, signum, frame):
+        """Handle shutdown signals and record API key to .env file"""
+        bt.logging.info(f"Received signal {signum}, shutting down gracefully...")
+        bt.logging.info(f"Current API key name: {self.current_api_key_name}")
+        bt.logging.info(f"Current API key value: {'*' * len(self.current_api_key_value) if self.current_api_key_value else 'None'}")
+        settings.record_api_key_to_env(self.current_api_key_name, self.current_api_key_value)
+        sys.exit(0)
+
+
+    def refresh_business_server_token(self):
+        """Refresh the business server token to maintain authentication"""
+        bt.logging.info("=== ENTERING refresh_business_server_token() ===")
+        try:
+            # Check if we have an API key to use
+            if not self.current_api_key_value:
+                bt.logging.warning("No API key available for business server registration")
+                return
+
+            # Refresh token 5 minutes before expiration 
+            token_refresh_interval = min(settings.NEURON_JWT_EXPIRE_IN * 60, 300)  # Convert to seconds
+            should_refresh = (self.last_server_business_token_expire - time.time()) < token_refresh_interval
+            if not should_refresh:
+                bt.logging.info(f"Business server token not expired, skipping refresh")
+                return
+
+            bt.logging.info("Refreshing business server token")
+            
+            # Determine neuron type
+            
+            data = {
+                "uid": self.uid, 
+                "chain": "bittensor", 
+                "netuid": self.config.netuid, 
+                "type": self.neuron_type, 
+                "account": self.wallet.hotkey.ss58_address
+            }
+            bt.logging.info(f"Registering with business server data: {data}")
+            data["token"] = create_neuron_access_token(data=data)
+            
+            client = ServiceApiClient(self.current_api_key_value)
+            result = client.post("/sapi/node/neuron/register", json=data)
+            bt.logging.info(f"Register with business server result: {result}")
+            if result.get("success"):
+                self.last_server_business_token_expire = time.time() + settings.NEURON_JWT_EXPIRE_IN * 60
+            else:
+                bt.logging.error(f"Failed to register with business server: {result}")
+        except Exception as e:
+            bt.logging.error(f"Failed to refresh business server token: {e}")
+
+    def refresh_server_api_key(self):
+        """Refresh the server api key to maintain authentication"""
+        bt.logging.info("=== ENTERING refresh_server_api_key() ===")
+        try:
+            # Check if we have an API key to refresh
+            if not self.current_api_key_value:
+                bt.logging.warning("No API key available for refresh")
+                return
+
+            # Refresh token 5 minutes before expiration 
+            should_refresh = (self.last_server_api_key_expire - time.time()) < 300
+            bt.logging.info(f"Server api key expire time: {self.last_server_api_key_expire}, current time: {time.time()}, should_refresh: {should_refresh}")
+            if not should_refresh:
+                bt.logging.info(f"Server api key not expired, skipping refresh")
+                return
+
+            bt.logging.info("Refreshing server api key")
+
+            client = ServiceApiClient(self.current_api_key_value)
+            result = client.post("/sapi/auth/refresh")
+            bt.logging.info(f"Refresh server api key result: {result}")
+            
+            if result.get("access_token") and result.get("exp"):
+                bt.logging.info(f"Server api key refreshed, expires at: {result.get('exp')}")
+                self.last_server_api_key_expire = result.get("exp")
+                self.current_api_key_value = result.get("access_token")
+                settings.SRV_API_KEY = self.current_api_key_value
+            elif result.get("error"):
+                bt.logging.error(f"Failed to refresh API key: {result.get('error')}")
+
+        except Exception as e:
+            bt.logging.error(f"Failed to refresh server api key: {e}")

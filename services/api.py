@@ -46,19 +46,12 @@ class HttpClient:
             response = requests.post(url, data=data, json=json, headers=merged_headers, timeout=self.timeout)
             response.raise_for_status()
             data = response.json()
-            if data and data.get("nodeToken"):
-                settings.SRV_API_KEY = data.get("nodeToken").get("access_token")
+            
             return data
         except Exception as e:
             return {"error": str(e)}
 
 
-class MinerClient(HttpClient):
-    def __init__(self, timeout=10):
-        token = settings.SRV_API_KEY
-        super().__init__(settings.SRV_API_URL, timeout, authorization=f"Bearer {token}")
-
-class ValidatorClient(HttpClient):
-    def __init__(self, timeout=10):
-        token = settings.SRV_API_KEY
+class ServiceApiClient(HttpClient):
+    def __init__(self, token:str, timeout=10):
         super().__init__(settings.SRV_API_URL, timeout, authorization=f"Bearer {token}")

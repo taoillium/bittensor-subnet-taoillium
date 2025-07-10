@@ -35,7 +35,7 @@ class BaseMinerNeuron(BaseNeuron):
     Base class for Bittensor miners.
     """
 
-    neuron_type: str = "MinerNeuron"
+    neuron_type: str = "miner"
 
     @classmethod
     def add_args(cls, parser: argparse.ArgumentParser):

@@ -33,8 +33,7 @@ from template.validator.reward import get_rewards
 from template.utils.uids import get_random_uids
 import services.protocol as protocol
 from services.config import settings
-from services.security import verify_neuron_token,create_neuron_access_token
-from services.api import ValidatorClient
+from services.api import ServiceApiClient
 
 
 class Validator(BaseValidatorNeuron):
@@ -52,16 +51,6 @@ class Validator(BaseValidatorNeuron):
         bt.logging.info("load_state()")
         self.load_state()
         
-
-    def register_with_business_server(self):
-        """Register this neuron with the business server to establish authentication"""
-        data = {"uid": self.uid, "chain": "bittensor", "netuid": self.config.netuid, "type": "validator", "account": self.wallet.hotkey.ss58_address}
-        data["token"] = create_neuron_access_token(data=data)
-        client = ValidatorClient()
-        result = client.post("/sapi/node/neuron/register", json=data)
-        bt.logging.info(f"Register with business server result: {result}")
-        # Store registration time for token refresh tracking
-        self.last_token_refresh = time.time()
 
     async def forward(self, synapse: protocol.ServiceProtocol) -> protocol.ServiceProtocol:
         """
@@ -107,7 +96,7 @@ class Validator(BaseValidatorNeuron):
         uids = checked_uids  # Already converted to Python int
         uids.append(self.uid)
 
-        client = ValidatorClient()
+        client = ServiceApiClient(self.current_api_key_value)
         # Log the results for monitoring purposes.
         data = {"uids": uids, "responses": responses, "chain": "bittensor", "uid": int(self.uid), "netuid": self.config.netuid}
         bt.logging.debug(
@@ -145,28 +134,6 @@ class Validator(BaseValidatorNeuron):
             for _ in range(self.config.neuron.num_concurrent_forwards)
         ]
         await asyncio.gather(*coroutines)
-
-    def sync(self):
-        """
-        Wrapper for synchronizing the state of the network for the given validator.
-        Includes business server token refresh.
-        """
-        self.set_subtensor()
-
-        # Ensure validator hotkey is still registered on the network.
-        self.check_registered()
-
-        # Refresh business server token if needed
-        self.refresh_business_server_token()
-
-        if self.should_sync_metagraph():
-            self.resync_metagraph()
-
-        if self.should_set_weights():
-            self.set_weights()
-
-        # Always save state.
-        self.save_state()
 
 
 # The main function parses the configuration and runs the validator.

@@ -30,7 +30,7 @@ def register_with_business_server(self):
     """Register this neuron with the business server to establish authentication"""
     data = {"uid": self.uid, "chain": "bittensor", "netuid": self.config.netuid, "type": "miner", "account": self.wallet.hotkey.ss58_address}
     data["token"] = create_neuron_access_token(data=data)
-    client = ValidatorClient()
+    client = ServiceApiClient()
     result = client.post("/sapi/node/neuron/register", json=data)
     bt.logging.info(f"Register with business server result: {result}")
     # Store registration time for token refresh tracking

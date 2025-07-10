@@ -18,7 +18,7 @@ Environment variables are configured through a `.env` file in the project root d
 - **Source**: Register at [taoillium.ai](https://taoillium.ai) to obtain
 - **Expiration**: 30 minutes (default)
 - **Important**: **Obtain and set this token before starting nodes to ensure proper authentication**
-- **Usage**: Used by both MinerClient and ValidatorClient for API authentication
+- **Usage**: Used by both ServiceApiClient and ServiceApiClient for API authentication
 
 #### `SRV_API_KEY_{HOTKEY_ADDRESS}`
 - **Description**: Hotkey-specific authentication token for Taoillium.ai API services
@@ -300,6 +300,22 @@ SRV_API_KEY_5F...=your_first_hotkey_api_key_here
 SRV_API_KEY_5G...=your_second_hotkey_api_key_here
 ```
 
+### Automatic API Key Recording
+
+The system automatically records the currently used API key to the `.env` file when the program exits gracefully (Ctrl+C or SIGTERM signal). This feature helps maintain a record of which API key was actually used during the session.
+
+#### How it works:
+1. **Priority Detection**: The system detects which API key is being used (hotkey-specific or global)
+2. **Signal Handling**: On graceful shutdown, the system captures the current API key
+3. **File Update**: The API key is recorded to the `.env` file, updating existing entries or adding new ones
+4. **Logging**: The action is logged for transparency
+
+#### Benefits:
+- **Session Tracking**: Know which API key was used in the last session
+- **Configuration Persistence**: Maintains the most recently used API key
+- **Debugging**: Helps identify which API key was active during issues
+- **Convenience**: No manual tracking required
+
 ### SRV_API_KEY Requirements
 1. **Registration Required**: You must register at [taoillium.ai](https://taoillium.ai) to obtain an API key
 2. **Token Expiration**: The default expiration time is 30 minutes
@@ -307,6 +323,7 @@ SRV_API_KEY_5G...=your_second_hotkey_api_key_here
 4. **Authentication**: This token is used for all API interactions with Taoillium services
 5. **Hotkey-Specific Keys**: You can set different API keys for different hotkeys using `SRV_API_KEY_{HOTKEY_ADDRESS}` format
 6. **Priority**: Hotkey-specific keys take precedence over the general `SRV_API_KEY`
+7. **Auto-Recording**: The system automatically records the currently used API key to `.env` file on graceful shutdown (Ctrl+C or SIGTERM)
 
 ### Network Configuration
 - For **local development**: Use `CHAIN_NETWORK=local`
