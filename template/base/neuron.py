@@ -287,7 +287,6 @@ class BaseNeuron(ABC):
 
     def refresh_business_server_token(self):
         """Refresh the business server token to maintain authentication"""
-        bt.logging.info("=== ENTERING refresh_business_server_token() ===")
         try:
             # Check if we have an API key to use
             if not self.current_api_key_value:
@@ -298,13 +297,9 @@ class BaseNeuron(ABC):
             token_refresh_interval = min(settings.NEURON_JWT_EXPIRE_IN * 60, 300)  # Convert to seconds
             should_refresh = (self.last_server_business_token_expire - time.time()) < token_refresh_interval
             if not should_refresh:
-                bt.logging.info(f"Business server token not expired, skipping refresh")
+                bt.logging.debug(f"Business server token not expired, skipping refresh")
                 return
 
-            bt.logging.info("Refreshing business server token")
-            
-            # Determine neuron type
-            
             data = {
                 "uid": self.uid, 
                 "chain": "bittensor", 
@@ -312,12 +307,12 @@ class BaseNeuron(ABC):
                 "type": self.neuron_type, 
                 "account": self.wallet.hotkey.ss58_address
             }
-            bt.logging.info(f"Registering with business server data: {data}")
+            bt.logging.debug(f"Registering with business server data: {data}")
             data["token"] = create_neuron_access_token(data=data)
             
             client = ServiceApiClient(self.current_api_key_value)
             result = client.post("/sapi/node/neuron/register", json=data)
-            bt.logging.info(f"Register with business server result: {result}")
+            bt.logging.debug(f"Register with business server result: {result}")
             if result.get("success"):
                 self.last_server_business_token_expire = time.time() + settings.NEURON_JWT_EXPIRE_IN * 60
             else:
@@ -327,7 +322,6 @@ class BaseNeuron(ABC):
 
     def refresh_server_api_key(self):
         """Refresh the server api key to maintain authentication"""
-        bt.logging.info("=== ENTERING refresh_server_api_key() ===")
         try:
             # Check if we have an API key to refresh
             if not self.current_api_key_value:
@@ -336,19 +330,16 @@ class BaseNeuron(ABC):
 
             # Refresh token 5 minutes before expiration 
             should_refresh = (self.last_server_api_key_expire - time.time()) < 300
-            bt.logging.info(f"Server api key expire time: {self.last_server_api_key_expire}, current time: {time.time()}, should_refresh: {should_refresh}")
             if not should_refresh:
-                bt.logging.info(f"Server api key not expired, skipping refresh")
+                bt.logging.debug(f"Server api key not expired, skipping refresh")
                 return
-
-            bt.logging.info("Refreshing server api key")
 
             client = ServiceApiClient(self.current_api_key_value)
             result = client.post("/sapi/auth/refresh")
-            bt.logging.info(f"Refresh server api key result: {result}")
+            bt.logging.debug(f"Refresh server api key result: {result}")
             
             if result.get("access_token") and result.get("exp"):
-                bt.logging.info(f"Server api key refreshed, expires at: {result.get('exp')}")
+                bt.logging.debug(f"Server api key refreshed, expires at: {result.get('exp')}")
                 self.last_server_api_key_expire = result.get("exp")
                 self.current_api_key_value = result.get("access_token")
                 settings.SRV_API_KEY = self.current_api_key_value
