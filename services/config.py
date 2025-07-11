@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     HOTKEY_NAME: str = os.getenv("HOTKEY_NAME", "default")
     
     CHAIN_NETUID: int = int(os.getenv("CHAIN_NETUID", "2"))
-    VALIDATOR_SLEEP_TIME: int = int(os.getenv("VALIDATOR_SLEEP_TIME", "1"))
+    VALIDATOR_SLEEP_TIME: int = int(os.getenv("VALIDATOR_SLEEP_TIME", "5"))
+    MINER_SLEEP_TIME: int = int(os.getenv("MINER_SLEEP_TIME", "5"))
 
     # Manager service configuration
     MANAGER_HOST: str = os.getenv("MANAGER_HOST", "0.0.0.0")

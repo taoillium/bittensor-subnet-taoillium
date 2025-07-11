@@ -120,6 +120,13 @@ Environment variables are configured through a `.env` file in the project root d
 - **Default**: 1
 - **Usage**: Controls validator polling frequency
 
+#### `MINER_SLEEP_TIME`
+- **Description**: Sleep time between miner operations in seconds
+- **Type**: Integer
+- **Required**: No
+- **Default**: 5
+- **Usage**: Controls miner polling frequency and resource usage
+
 ### 🏗️ **Manager Service Configuration**
 
 #### `MANAGER_HOST`
@@ -254,7 +261,8 @@ WALLET_NAME=validator
 HOTKEY_NAME=default
 
 # Service Configuration
-VALIDATOR_SLEEP_TIME=1
+VALIDATOR_SLEEP_TIME=5
+MINER_SLEEP_TIME=5
 
 # Manager Service Configuration
 MANAGER_HOST=0.0.0.0

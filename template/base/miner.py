@@ -26,6 +26,7 @@ import bittensor as bt
 
 from template.base.neuron import BaseNeuron
 from template.utils.config import add_miner_args
+from services.config import settings
 
 from typing import Union
 
@@ -122,7 +123,7 @@ class BaseMinerNeuron(BaseNeuron):
                     < self.config.neuron.epoch_length
                 ):
                     # Wait before checking again.
-                    time.sleep(1)
+                    time.sleep(settings.MINER_SLEEP_TIME)
 
                     # Check if we should exit.
                     if self.should_exit:
@@ -132,7 +133,7 @@ class BaseMinerNeuron(BaseNeuron):
                 # bt.logging.info(f"Syncing metagraph")
                 self.sync()
                 self.step += 1
-                time.sleep(1)
+                time.sleep(settings.MINER_SLEEP_TIME)
 
         # If someone intentionally stops the miner, it'll safely terminate operations.
         except KeyboardInterrupt:
