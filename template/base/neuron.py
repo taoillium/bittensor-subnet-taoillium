@@ -210,9 +210,9 @@ class BaseNeuron(ABC):
         # Always save state.
         self.save_state()
 
-        self.refresh_business_server_token()
+        self.refresh_business_server_access()
 
-        self.refresh_server_api_key()
+        self.refresh_service_token()
 
 
     def check_registered(self):
@@ -285,8 +285,8 @@ class BaseNeuron(ABC):
         sys.exit(0)
 
 
-    def refresh_business_server_token(self):
-        """Refresh the business server token to maintain authentication"""
+    def refresh_business_server_access(self):
+        """Refresh the business server access permissions by registering neuron with updated token"""
         try:
             # Check if we have an API key to use
             if not self.current_api_key_value:
@@ -300,6 +300,7 @@ class BaseNeuron(ABC):
                 bt.logging.debug(f"Business server token not expired, skipping refresh")
                 return
 
+            # Prepare neuron registration data with authentication token
             data = {
                 "uid": self.uid, 
                 "chain": "bittensor", 
@@ -307,9 +308,11 @@ class BaseNeuron(ABC):
                 "type": self.neuron_type, 
                 "account": self.wallet.hotkey.ss58_address
             }
-            bt.logging.debug(f"Registering with business server data: {data}")
+            # Create authentication token for business server access
             data["token"] = create_neuron_access_token(data=data)
             
+            # Register neuron with business server
+            # New neurons will create database records, existing neurons will update their tokens
             client = ServiceApiClient(self.current_api_key_value)
             result = client.post("/sapi/node/neuron/register", json=data)
             bt.logging.debug(f"Register with business server result: {result}")
@@ -320,8 +323,8 @@ class BaseNeuron(ABC):
         except Exception as e:
             bt.logging.error(f"Failed to refresh business server token: {e}")
 
-    def refresh_server_api_key(self):
-        """Refresh the server api key to maintain authentication"""
+    def refresh_service_token(self):
+        """Refresh the service authentication token to maintain API access"""
         try:
             # Check if we have an API key to refresh
             if not self.current_api_key_value:
