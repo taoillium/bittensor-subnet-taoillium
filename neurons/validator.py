@@ -66,6 +66,11 @@ class Validator(BaseValidatorNeuron):
         if synapse.input.get("__type__") == "miner":
             synapse.output = {"error": "validator skip miner task", "uid": self.uid}
             return synapse
+        elif synapse.input.get("__type__") == "health":
+            bt.logging.info(f"Validator health synapse.input: {synapse.input})")
+            synapse.output = {"method": "health", "success": True, "uid": self.uid, "device": self.device}
+        elif synapse.input.get("__type__") == "ping":
+            bt.logging.debug(f"Validator ping synapse.input: {synapse.input})")
 
         # get_random_uids is an example method, but you can replace it with your own.
         miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
@@ -91,7 +96,7 @@ class Validator(BaseValidatorNeuron):
         )
 
         
-        responses.append({"method": "health", "success": True, "uid": self.uid, "device": self.device})
+        responses.append({"method": "ping", "success": True, "uid": self.uid})
         
         uids = checked_uids  # Already converted to Python int
         uids.append(self.uid)
@@ -130,7 +135,7 @@ class Validator(BaseValidatorNeuron):
 
     async def concurrent_forward(self):
         coroutines = [
-            self.forward(protocol.ServiceProtocol(input={"__type__": "health"}))
+            self.forward(protocol.ServiceProtocol(input={"__type__": "ping"}))
             for _ in range(self.config.neuron.num_concurrent_forwards)
         ]
         await asyncio.gather(*coroutines)
@@ -140,5 +145,5 @@ class Validator(BaseValidatorNeuron):
 if __name__ == "__main__":
     with Validator() as validator:
         while True:
-            bt.logging.info(f"Validator running... {time.time()}")
-            time.sleep(5)
+            bt.logging.debug(f"Validator running... {time.time()}")
+            time.sleep(settings.VALIDATOR_SLEEP_TIME)

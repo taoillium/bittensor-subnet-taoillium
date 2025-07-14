@@ -21,5 +21,8 @@ else
     axon_external_ip_param=""
 fi
 
-echo "Running validator python -m neurons.validator --netuid $netuid --subtensor.chain_endpoint $chain_endpoint --subtensor.network $network --wallet.name $VALIDATOR_WALLET --wallet.hotkey $VALIDATOR_HOTKEY --logging.debug --axon.port $port $axon_external_ip_param"
-python -m neurons.validator --netuid $netuid --subtensor.chain_endpoint $chain_endpoint --subtensor.network $network --wallet.name $VALIDATOR_WALLET --wallet.hotkey $VALIDATOR_HOTKEY --logging.debug --axon.port $port $axon_external_ip_param #--neuron.epoch_length 101
+NEURON_LOGGING_LEVEL=${NEURON_LOGGING_LEVEL:-info}
+logging_param="--logging.$NEURON_LOGGING_LEVEL"
+
+echo "Running validator python -m neurons.validator --netuid $netuid --subtensor.chain_endpoint $chain_endpoint --subtensor.network $network --wallet.name $VALIDATOR_WALLET --wallet.hotkey $VALIDATOR_HOTKEY --axon.port $port $axon_external_ip_param $logging_param"
+python -m neurons.validator --netuid $netuid --subtensor.chain_endpoint $chain_endpoint --subtensor.network $network --wallet.name $VALIDATOR_WALLET --wallet.hotkey $VALIDATOR_HOTKEY --axon.port $port $axon_external_ip_param $logging_param #--neuron.epoch_length 101

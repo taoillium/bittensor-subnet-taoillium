@@ -76,7 +76,7 @@ class QueryResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     message: str
-    network_info: Optional[Dict[str, Any]] = None
+    network_info: Any
 
 class TaskReceiveRequest(BaseModel):
     method: str = Field(description="The method to be called")
@@ -219,23 +219,31 @@ async def task_receive(
 async def health_check():
     """Health check endpoint for subnet connectivity"""
     try:
-        metagraph = get_metagraph()
-        if metagraph is None:
-            return HealthResponse(
-                status="unhealthy",
-                message="Failed to connect to subnet",
-                network_info={"error": "Metagraph initialization failed"}
-            )
+        # Convert TaskReceiveRequest to the format expected by ServiceProtocol
+        user_input = {
+            "__type__": "health"
+        }
         
+        logging.info(f"user_input: {user_input}")
+        # Use the TaoilliumAPI to query the network
+        # This mimics the forward_with_input behavior from validator.py
+        api_client = get_api_client()
+        responses = await api_client.query_network(
+            user_input=user_input,
+            sample_size=3,  # Default sample size (can be made configurable)
+            timeout=30,
+            use_random_selection=True  # Use random selection like forward_with_input
+        )
+
+        logging.info(f"responses: {responses}")
+        
+        # Return responses in the same format as validator.py
+        # Only return non-empty responses (same as validator.py)
+        outputs = [r for r in responses if r]
         return HealthResponse(
             status="healthy",
-            message="Subnet API is accessible",
-            network_info={
-                "netuid": metagraph.netuid,
-                "total_neurons": len(metagraph.axons),
-                "network": metagraph.network,
-                "block": metagraph.block.item() if hasattr(metagraph.block, 'item') else str(metagraph.block)
-            }
+            message="Subnet API check passed",
+            network_info=outputs
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")

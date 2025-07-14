@@ -25,6 +25,7 @@ import services.protocol as protocol
 
 # import base miner class which takes care of most of the boilerplate
 from template.base.miner import BaseMinerNeuron
+from services.config import settings
 
 
 class Miner(BaseMinerNeuron):
@@ -53,7 +54,12 @@ class Miner(BaseMinerNeuron):
 
         bt.logging.debug(f"Miner forward synapse.input: {synapse.input})")
         if synapse.input.get("__type__") == "health":
+            bt.logging.info(f"Miner health synapse.input: {synapse.input})")
             synapse.output = {"method": "health", "success": True, "uid": self.uid, "device": self.device}
+        elif synapse.input.get("__type__") == "ping":
+            bt.logging.info(f"Miner ping synapse.input: {synapse.input})")
+            synapse.output = {"method": "ping", "success": True, "uid": self.uid}
+            return synapse
         else:
             client = ServiceApiClient(self.current_api_key_value)
             synapse.input["uid"] = self.uid
@@ -171,5 +177,5 @@ class Miner(BaseMinerNeuron):
 if __name__ == "__main__":
     with Miner() as miner:
         while True:
-            bt.logging.info(f"Miner running... {time.time()}")
-            time.sleep(5)
+            bt.logging.debug(f"Miner running... {time.time()}")
+            time.sleep(settings.MINER_SLEEP_TIME)
