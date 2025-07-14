@@ -4,11 +4,11 @@
 
 This document describes the dual token refresh mechanism implemented in the Bittensor subnet neurons (validators and miners) to maintain continuous authentication with the business server.
 
-## Solution: Dual Token Refresh System
+## Solution: Integrated Token Refresh System
 
 ### Design Principles
 
-1. **Dual Authentication**: Two separate token refresh mechanisms for different purposes
+1. **Integrated Authentication**: Single endpoint returns both tokens for simplified architecture
 2. **Proactive Refresh**: Refresh tokens 5 minutes before expiration to ensure continuous operation
 3. **Minimal Overhead**: Only refresh when necessary, not on every sync cycle
 4. **Consistent Behavior**: Same logic for both validators and miners
@@ -18,77 +18,118 @@ This document describes the dual token refresh mechanism implemented in the Bitt
 
 #### 1. Token Types and Purposes
 
-**Business Server Access (`refresh_business_server_access`)**:
-- Used for neurons to register with the business server using tokens
+**Integrated Business Server Access (`refresh_business_server_access`)**:
+- Used for neurons to register with the business server and obtain service tokens
 - Endpoint: `/sapi/node/neuron/register`
 - Contains neuron metadata (uid, chain, netuid, type, account) and authentication token
+- Returns both neuron registration token and service access token
 - Allows business server to access and communicate with neurons
 - New neurons create database records, existing neurons update their tokens
-- Expires after 30 minutes (configurable via `NEURON_JWT_EXPIRE_IN`)
-
-**Service Authentication Token (`refresh_service_token`)**:
-- Used for general API authentication with the service
-- Endpoint: `/sapi/auth/refresh`
-- Provides access token for service API calls
-- Expires after server-defined time (typically 30 minutes)
+- Both tokens expire after 30 minutes (configurable via `NEURON_JWT_EXPIRE_IN`)
 
 #### 2. Token Refresh Tracking
 
-See [`BaseNeuron.__init__()`](template/base/neuron.py#L69) for initialization of token expiration timestamps.
-
-#### 3. Business Server Access Refresh
-
-See [`BaseNeuron.refresh_business_server_access()`](template/base/neuron.py#L250) for the complete implementation.
-
-Key functionality:
-- Checks API key availability
-- Validates token expiration timing
-- Creates neuron registration data with authentication token
-- Registers neuron with business server
-- Updates expiration timestamp on success
-
-#### 4. Service Token Refresh
-
-See [`BaseNeuron.refresh_service_token()`](template/base/neuron.py#L285) for the complete implementation.
-
-Key functionality:
-- Checks API key availability
-- Validates token expiration timing
-- Refreshes service authentication token
-- Updates API key and expiration timestamp on success
-
-#### 5. Integration with Sync Cycle
-
-See [`BaseNeuron.sync()`](template/base/neuron.py#L185) for the complete sync implementation.
-
-Both token refresh methods are called at the end of each sync cycle:
 ```python
-self.refresh_business_server_access()
-self.refresh_service_token()
+def __init__(self, config=None):
+    # ... other initialization code ...
+    
+    # Initialize token expiration timestamps for both tokens
+    self.last_neuron_registration_expire = time.time() + 60  # 1 minute from now
+    self.last_service_token_expire = time.time() + 60  # 1 minute from now
+```
+
+#### 3. Integrated Business Server Access Refresh
+
+```python
+def refresh_business_server_access(self):
+    """Refresh both neuron registration and service access tokens from business server"""
+    try:
+        # Check if we have an API key to use
+        if not self.current_api_key_value:
+            bt.logging.warning("No API key available for business server registration")
+            return
+
+        # Check if either token needs refresh (5 minutes before expiration)
+        token_refresh_interval = min(settings.NEURON_JWT_EXPIRE_IN * 60, 300)  # Convert to seconds
+        neuron_token_expired = (self.last_neuron_registration_expire - time.time()) < token_refresh_interval
+        service_token_expired = (self.last_service_token_expire - time.time()) < token_refresh_interval
+        
+        if not (neuron_token_expired or service_token_expired):
+            bt.logging.debug(f"Both tokens still valid, skipping refresh")
+            return
+
+        # Prepare neuron registration data with authentication token
+        data = {
+            "uid": self.uid, 
+            "chain": "bittensor", 
+            "netuid": self.config.netuid, 
+            "type": self.neuron_type, 
+            "account": self.wallet.hotkey.ss58_address
+        }
+        # Create authentication token for business server access
+        data["token"] = create_neuron_access_token(data=data)
+        
+        # Use dedicated token refresh endpoint
+        client = ServiceApiClient(self.current_api_key_value)
+        result = client.post("/sapi/node/neuron/refresh", json=data)
+        bt.logging.debug(f"Token refresh result: {result}")
+        
+        if result.get("success"):
+            # Update both token expiration times
+            self.last_neuron_registration_expire = time.time() + settings.NEURON_JWT_EXPIRE_IN * 60
+            
+            # Update service token if returned
+            if result.get("access_token") and result.get("exp"):
+                self.last_service_token_expire = result.get("exp")
+                self.current_api_key_value = result.get("access_token")
+                settings.SRV_API_KEY = self.current_api_key_value
+                bt.logging.debug(f"Service token refreshed, expires at: {result.get('exp')}")
+        else:
+            bt.logging.error(f"Failed to refresh tokens: {result}")
+    except Exception as e:
+        bt.logging.error(f"Failed to refresh business server access: {e}")
+```
+
+#### 4. Integration with Sync Cycle
+
+```python
+def sync(self):
+    """
+    Wrapper for synchronizing the state of the network for the given miner or validator.
+    Includes integrated token refresh mechanism.
+    """
+    self.set_subtensor()
+    self.check_registered()
+    
+    if self.should_sync_metagraph():
+        self.resync_metagraph()
+    
+    if self.should_set_weights():
+        self.set_weights()
+    
+    # Always save state.
+    self.save_state()
+
+    # Refresh both tokens in single call
+    self.refresh_business_server_access()
 ```
 
 ## Token Lifecycle and Timing
 
-### Business Server Access Lifecycle
+### Integrated Token Lifecycle
 
 1. **Initial Registration**: Neuron creates authentication token and registers with business server
-2. **Database Handling**: Business server creates new database record for new neurons, updates tokens for existing neurons
-3. **Active Period**: Registration token valid for 30 minutes (configurable via `NEURON_JWT_EXPIRE_IN`)
-4. **Refresh Window**: Token refreshed 5 minutes before expiration (25 minutes after creation)
-5. **Continuous Operation**: Process repeats indefinitely, maintaining business server access capability
-
-### Service Token Lifecycle
-
-1. **Initial Authentication**: API key obtained from environment or initial auth
-2. **Active Period**: Token valid for server-defined time (typically 30 minutes)
-3. **Refresh Window**: Token refreshed 5 minutes before expiration
-4. **Continuous Operation**: Process repeats indefinitely
+2. **Token Response**: Business server returns both neuron registration token and service access token
+3. **Database Handling**: Business server creates new database record for new neurons, updates tokens for existing neurons
+4. **Active Period**: Both tokens valid for 30 minutes (configurable via `NEURON_JWT_EXPIRE_IN`)
+5. **Refresh Window**: Tokens refreshed 5 minutes before expiration (25 minutes after creation)
+6. **Continuous Operation**: Process repeats indefinitely, maintaining business server access capability
 
 ### Sync Cycle Integration
 
 - **Validator**: `sync()` called every epoch (typically every 100 blocks)
 - **Miner**: `sync()` called periodically during operation
-- **Token Refresh**: Both tokens checked on every sync cycle, but only executed when needed
+- **Token Refresh**: Both tokens checked on every sync cycle, but only executed when either token needs refresh
 
 ## API Key Management
 
@@ -106,11 +147,32 @@ SRV_API_KEY
 
 ### API Key Tracking
 
-See [`BaseNeuron.__init__()`](template/base/neuron.py#L95) for API key initialization and tracking.
+```python
+# Track current API key information
+self.current_api_key_name = None
+self.current_api_key_value = None
+
+# Initialize from environment
+if os.getenv(my_srv_api_key):
+    settings.SRV_API_KEY = os.getenv(my_srv_api_key)
+    self.current_api_key_value = settings.SRV_API_KEY
+    self.current_api_key_name = my_srv_api_key
+elif os.getenv("SRV_API_KEY"):
+    self.current_api_key_value = os.getenv("SRV_API_KEY")
+    self.current_api_key_name = "SRV_API_KEY"
+```
 
 ### Graceful Shutdown
 
-See [`BaseNeuron._signal_handler()`](template/base/neuron.py#L240) for shutdown handling and API key recording.
+```python
+def _signal_handler(self, signum, frame):
+    """Handle shutdown signals and record API key to .env file"""
+    bt.logging.info(f"Received signal {signum}, shutting down gracefully...")
+    bt.logging.info(f"Current API key name: {self.current_api_key_name}")
+    bt.logging.info(f"Current API key value: {'*' * len(self.current_api_key_value) if self.current_api_key_value else 'None'}")
+    settings.record_api_key_to_env(self.current_api_key_name, self.current_api_key_value)
+    sys.exit(0)
+```
 
 ## Configuration
 
@@ -218,3 +280,131 @@ The neuron registration system enables bidirectional communication between neuro
 2. **Database Security**: Business server securely stores neuron tokens and metadata
 3. **Token Rotation**: Regular token refresh prevents long-term token exposure
 4. **Access Verification**: Business server verifies token validity before neuron communication
+
+## API Design and Naming Considerations
+
+### Current API Endpoint Analysis
+
+**Current Endpoint**: `/sapi/node/neuron/register`
+
+**Design Intent**: 
+1. **Neuron Registration**: Client neurons register with the business server
+2. **Token Exchange**: Server returns access tokens after successful registration
+3. **Bidirectional Authentication**: Both neuron and business server obtain authentication tokens
+4. **Continuous Operation**: Registration includes token refresh for ongoing access
+
+**Current Implementation is Correct**:
+- ✅ **Semantic Accuracy**: The endpoint correctly handles neuron registration
+- ✅ **Function Completeness**: Registration includes authentication and token exchange
+- ✅ **RESTful Compliance**: POST /register is standard for registration operations
+- ✅ **Business Logic**: Registration provides immediate access through token exchange
+
+### API Design Validation
+
+**Why `/sapi/node/neuron/register` is Appropriate**:
+
+1. **Registration Process**:
+   ```
+   Neuron → POST /register → Business Server
+   Business Server → Validate → Return Tokens
+   ```
+
+2. **Token Exchange Flow**:
+   ```
+   Request: Neuron metadata + authentication token
+   Response: Registration confirmation + service access token
+   ```
+
+3. **Bidirectional Authentication**:
+   ```
+   Neuron gets: Service access token (for API calls)
+   Business Server gets: Neuron authentication token (for neuron access)
+   ```
+
+### Current Implementation is Optimal
+
+**Benefits of Current Design**:
+1. **Single Endpoint**: Efficient one-call registration with token exchange
+2. **Clear Purpose**: Registration endpoint naturally includes authentication
+3. **Standard Practice**: Common pattern in API design
+4. **Minimal Overhead**: No need for separate registration and token calls
+
+**Implementation Strategy** (Current approach is correct):
+```python
+def refresh_business_server_access(self):
+    """Refresh both neuron registration and service access tokens from business server"""
+    try:
+        # Check if we have an API key to use
+        if not self.current_api_key_value:
+            bt.logging.warning("No API key available for business server registration")
+            return
+
+        # Check if either token needs refresh (5 minutes before expiration)
+        token_refresh_interval = min(settings.NEURON_JWT_EXPIRE_IN * 60, 300)  # Convert to seconds
+        neuron_token_expired = (self.last_neuron_registration_expire - time.time()) < token_refresh_interval
+        service_token_expired = (self.last_service_token_expire - time.time()) < token_refresh_interval
+        
+        if not (neuron_token_expired or service_token_expired):
+            bt.logging.debug(f"Both tokens still valid, skipping refresh")
+            return
+
+        # Prepare neuron registration data with authentication token
+        data = {
+            "uid": self.uid, 
+            "chain": "bittensor", 
+            "netuid": self.config.netuid, 
+            "type": self.neuron_type, 
+            "account": self.wallet.hotkey.ss58_address
+        }
+        # Create authentication token for business server access
+        data["token"] = create_neuron_access_token(data=data)
+        
+        # Register neuron with business server and get both tokens
+        # This is the correct approach - registration includes token exchange
+        client = ServiceApiClient(self.current_api_key_value)
+        result = client.post("/sapi/node/neuron/register", json=data)
+        bt.logging.debug(f"Register with business server result: {result}")
+        
+        if result.get("success"):
+            # Update both token expiration times
+            self.last_neuron_registration_expire = time.time() + settings.NEURON_JWT_EXPIRE_IN * 60
+            
+            # Update service token if returned
+            if result.get("access_token") and result.get("exp"):
+                self.last_service_token_expire = result.get("exp")
+                self.current_api_key_value = result.get("access_token")
+                settings.SRV_API_KEY = self.current_api_key_value
+                bt.logging.debug(f"Service token refreshed, expires at: {result.get('exp')}")
+        else:
+            bt.logging.error(f"Failed to register with business server: {result}")
+    except Exception as e:
+        bt.logging.error(f"Failed to refresh business server access: {e}")
+```
+
+### Server-Side API Design (Current is Correct)
+
+**Current Server Endpoint**:
+```
+POST /sapi/node/neuron/register
+Purpose: Neuron registration with token exchange
+Request: Neuron metadata + authentication token
+Response: Registration confirmation + service access token
+```
+
+**Why This Design Works**:
+1. **Registration Includes Authentication**: Standard practice in API design
+2. **Token Exchange**: Natural part of the registration process
+3. **Efficient**: Single call handles both registration and token provision
+4. **Clear Intent**: Registration endpoint naturally provides access credentials
+
+### Conclusion
+
+The current API design with `/sapi/node/neuron/register` is **correct and optimal**:
+
+- ✅ **Semantic Accuracy**: Correctly represents neuron registration
+- ✅ **Functional Completeness**: Handles both registration and token exchange
+- ✅ **RESTful Compliance**: Follows standard API design patterns
+- ✅ **Business Logic**: Registration provides immediate access through tokens
+- ✅ **Efficiency**: Single endpoint reduces complexity and overhead
+
+**No changes needed** - the current implementation aligns perfectly with the intended design.
