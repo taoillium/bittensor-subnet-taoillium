@@ -88,6 +88,9 @@ case $1 in
     start)
         docker-compose --env-file .env -f docker/docker-compose.miner.yml start
         ;;
+    up)
+        docker-compose --env-file .env -f docker/docker-compose.miner.yml up -d
+        ;;
     down)
         docker-compose --env-file .env -f docker/docker-compose.miner.yml down
         ;;

@@ -87,6 +87,9 @@ case $1 in
     start)
         docker-compose --env-file .env -f docker/docker-compose.validator.yml start
         ;;
+    up)
+        docker-compose --env-file .env -f docker/docker-compose.validator.yml up -d
+        ;;
     down)
         docker-compose --env-file .env -f docker/docker-compose.validator.yml down
         ;;
