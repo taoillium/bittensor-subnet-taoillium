@@ -101,36 +101,27 @@ class Validator(BaseValidatorNeuron):
         # The dendrite client queries the network with proper timeout handling.
         responses = []
         
-        # Query each axon individually to avoid timeout context manager issues on finney network
+        # Query each axon individually with simplified approach
         for uid in checked_uids:
             try:
                 axon = self.metagraph.axons[uid]
                 
-                # Use asyncio.wait_for to handle timeout manually and avoid context manager issues
-                async def single_axon_call():
-                    return await self.dendrite(
-                        axons=[axon],
-                        synapse=synapse,
-                        deserialize=True,
-                        timeout=8.0,
-                    )
-                
-                # Use asyncio.wait_for with manual timeout handling
-                response = await asyncio.wait_for(single_axon_call(), timeout=8.0)
+                # Use simple dendrite call with error handling
+                response = await self.dendrite(
+                    axons=[axon],
+                    synapse=synapse,
+                    deserialize=True,
+                    timeout=8.0,
+                )
                 
                 if response and len(response) > 0:
                     responses.extend(response)
                 else:
-                    # Create a mock response for failed calls
-                    mock_response = {"method": "ping", "success": False, "uid": uid, "error": "timeout"}
+                    mock_response = {"method": "ping", "success": False, "uid": uid, "error": "empty_response"}
                     responses.append(mock_response)
-            except asyncio.TimeoutError:
-                bt.logging.debug(f"Dendrite call timeout for uid {uid}")
-                mock_response = {"method": "ping", "success": False, "uid": uid, "error": "timeout"}
-                responses.append(mock_response)
+                    
             except Exception as e:
                 bt.logging.debug(f"Dendrite call failed for uid {uid}: {e}")
-                # Create a mock response for failed calls
                 mock_response = {"method": "ping", "success": False, "uid": uid, "error": str(e)}
                 responses.append(mock_response)
 
