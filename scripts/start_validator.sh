@@ -24,5 +24,8 @@ fi
 NEURON_LOGGING_LEVEL=${NEURON_LOGGING_LEVEL:-info}
 logging_param="--logging.$NEURON_LOGGING_LEVEL"
 
-echo "Running validator python -m neurons.validator --netuid $netuid --subtensor.chain_endpoint $chain_endpoint --subtensor.network $network --wallet.name $VALIDATOR_WALLET --wallet.hotkey $VALIDATOR_HOTKEY --axon.port $port $axon_external_ip_param $logging_param"
-python -m neurons.validator --netuid $netuid --subtensor.chain_endpoint $chain_endpoint --subtensor.network $network --wallet.name $VALIDATOR_WALLET --wallet.hotkey $VALIDATOR_HOTKEY --axon.port $port $axon_external_ip_param $logging_param #--neuron.epoch_length 101
+NEURON_EXTERNAL_REWARD_WEIGHT=${NEURON_EXTERNAL_REWARD_WEIGHT:-0.5}
+external_reward_weight_param="--neuron.external_reward_weight $NEURON_EXTERNAL_REWARD_WEIGHT"
+
+echo "Running validator python -m neurons.validator --netuid $netuid --subtensor.chain_endpoint $chain_endpoint --subtensor.network $network --wallet.name $VALIDATOR_WALLET --wallet.hotkey $VALIDATOR_HOTKEY --axon.port $port $axon_external_ip_param $logging_param $external_reward_weight_param"
+python -m neurons.validator --netuid $netuid --subtensor.chain_endpoint $chain_endpoint --subtensor.network $network --wallet.name $VALIDATOR_WALLET --wallet.hotkey $VALIDATOR_HOTKEY --axon.port $port $axon_external_ip_param $logging_param $external_reward_weight_param
