@@ -81,7 +81,8 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.warning("axon off, not serving ip to chain.")
 
         # Create asyncio event loop to manage async tasks.
-        self.loop = asyncio.get_event_loop()
+        # Don't store the loop here as it will be created in the background thread
+        self.loop = None
 
         # Instantiate runners
         self.should_exit: bool = False
@@ -113,8 +114,9 @@ class BaseValidatorNeuron(BaseNeuron):
                     f"Running validator {self.axon} on network: {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}"
                 )
 
-                # Start  starts the miner's axon, making it active on the network.
-                self.axon.start()
+                # Start the axon, making it active on the network.
+                # Note: axon.start() will be called in the background thread
+                # to ensure proper event loop context
             except Exception as e:
                 bt.logging.error(f"Failed to serve Axon with exception: {e}")
                 pass
@@ -156,6 +158,14 @@ class BaseValidatorNeuron(BaseNeuron):
         # Check that validator is registered on the network.
         self.sync()
 
+        # Start the axon in the background thread to ensure proper event loop context
+        if hasattr(self, 'axon') and self.axon:
+            try:
+                self.axon.start()
+                bt.logging.info("Axon started in background thread")
+            except Exception as e:
+                bt.logging.error(f"Failed to start axon in background thread: {e}")
+
         bt.logging.info(f"Validator starting at block: {self.block}")
 
         # This loop maintains the validator's operations until intentionally stopped.
@@ -196,7 +206,17 @@ class BaseValidatorNeuron(BaseNeuron):
         if not self.is_running:
             bt.logging.debug("Starting validator in background thread.")
             self.should_exit = False
-            self.thread = threading.Thread(target=lambda: asyncio.run(self.run()), daemon=True)
+            
+            def run_validator():
+                # Create a new event loop for this thread
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    loop.run_until_complete(self.run())
+                finally:
+                    loop.close()
+            
+            self.thread = threading.Thread(target=run_validator, daemon=True)
             self.thread.start()
             self.is_running = True
             bt.logging.debug("Started")

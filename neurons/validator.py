@@ -84,17 +84,31 @@ class Validator(BaseValidatorNeuron):
             return synapse
 
         bt.logging.debug(f"Validator forward uids: {checked_uids}, validator uid: {self.uid}, synapse: {synapse}")
-        # The dendrite client queries the network.
-        responses = await self.dendrite(
-            # Send the query to selected miner axons in the network.
-            axons=[self.metagraph.axons[uid] for uid in checked_uids],
-            # Construct a dummy query. This simply contains a single integer.
-            synapse=synapse,
-            # All responses have the deserialize function called on them before returning.
-            # You are encouraged to define your own deserialization function.
-            deserialize=True,
-        )
+        # The dendrite client queries the network with proper timeout handling.
+        try:
+            responses = await self.dendrite(
+                # Send the query to selected miner axons in the network.
+                axons=[self.metagraph.axons[uid] for uid in checked_uids],
+                # Construct a dummy query. This simply contains a single integer.
+                synapse=synapse,
+                # All responses have the deserialize function called on them before returning.
+                # You are encouraged to define your own deserialization function.
+                deserialize=True,
+                # Add explicit timeout to avoid context manager issues
+                timeout=12.0,
+            )
+        except Exception as e:
+            bt.logging.error(f"Dendrite call failed: {e}")
+            # Return empty responses on failure
+            responses = []
+            # Log additional context for debugging
+            bt.logging.debug(f"Current event loop: {asyncio.get_event_loop()}")
+            bt.logging.debug(f"Current task: {asyncio.current_task()}")
 
+        
+        # Ensure responses is a list even if dendrite call failed
+        if not isinstance(responses, list):
+            responses = []
         
         responses.append({"method": "ping", "success": True, "uid": self.uid})
         
@@ -107,7 +121,11 @@ class Validator(BaseValidatorNeuron):
         bt.logging.debug(
             f"request node/task/validate: {data}"
         )
-        result = client.post("/sapi/node/task/validate", json=data)
+        try:
+            result = client.post("/sapi/node/task/validate", json=data)
+        except Exception as e:
+            bt.logging.error(f"ServiceApiClient call failed: {e}")
+            result = {"error": str(e), "values": [], "uids": uids}
         bt.logging.debug(f"Validate result: {result}")
         values = result.get('values', [])
         total = sum(values)
@@ -135,8 +153,15 @@ class Validator(BaseValidatorNeuron):
     
 
     async def concurrent_forward(self):
+        # Use semaphore to limit concurrent dendrite calls to avoid event loop issues
+        semaphore = asyncio.Semaphore(3)  # Limit to 3 concurrent calls
+        
+        async def forward_with_semaphore():
+            async with semaphore:
+                return await self.forward(protocol.ServiceProtocol(input={"__type__": "ping"}))
+        
         coroutines = [
-            self.forward(protocol.ServiceProtocol(input={"__type__": "ping"}))
+            forward_with_semaphore()
             for _ in range(self.config.neuron.num_concurrent_forwards)
         ]
         await asyncio.gather(*coroutines)
