@@ -64,17 +64,8 @@ class BaseValidatorNeuron(BaseNeuron):
         if self.config.mock:
             self.dendrite = MockDendrite(wallet=self.wallet)
         else:
-            # Initialize dendrite with specific configuration for finney network
-            if self.config.subtensor.network == "finney":
-                # Use more conservative settings for finney network
-                dendrite_config = bt.dendrite.config()
-                dendrite_config.max_active_receptors = 128
-                dendrite_config.timeout = 8.0
-                self.dendrite = bt.dendrite(wallet=self.wallet, config=dendrite_config)
-                bt.logging.info(f"Dendrite initialized with finney-specific config: {self.dendrite}")
-            else:
-                self.dendrite = bt.dendrite(wallet=self.wallet)
-                bt.logging.info(f"Dendrite: {self.dendrite}")
+            self.dendrite = bt.dendrite(wallet=self.wallet)
+        bt.logging.info(f"Dendrite: {self.dendrite}")
 
         # Set up initial scoring weights for validation
         bt.logging.info("Building validation weights.")
@@ -92,13 +83,6 @@ class BaseValidatorNeuron(BaseNeuron):
         # Create asyncio event loop to manage async tasks.
         # Don't store the loop here as it will be created in the background thread
         self.loop = None
-        
-        # Set dendrite configuration for better finney network compatibility
-        if hasattr(self.config, 'dendrite'):
-            # Reduce max_active_receptors for finney network to avoid event loop issues
-            if self.config.subtensor.network == "finney":
-                self.config.dendrite.max_active_receptors = 128  # Reduce from 4096
-                bt.logging.info(f"Reduced max_active_receptors to {self.config.dendrite.max_active_receptors} for finney network")
 
         # Instantiate runners
         self.should_exit: bool = False
