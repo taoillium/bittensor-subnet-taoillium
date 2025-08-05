@@ -72,11 +72,26 @@ class Validator(BaseValidatorNeuron):
         elif synapse.input.get("__type__") == "ping":
             bt.logging.debug(f"Validator ping synapse.input: {synapse.input})")
 
+        client = ServiceApiClient(self.current_api_key_value)
+
+        picked_uids = []
+        try:
+            result = client.get("/sapi/node/neuron/list", params={"flag": "dex-pool-validator,dex-pool-miner"})
+            if result:
+                picked_uids = []
+                for item in result:
+                    picked_uids.append(int(item["channel"]))
+                bt.logging.debug(f"Api picked uids: {picked_uids}")
+        except Exception as e:
+            bt.logging.error(f"ServiceApiClient call failed: {e}")
+
         # get_random_uids is an example method, but you can replace it with your own.
-        miner_uids = get_random_uids(self, k=self.config.neuron.sample_size)
+        if not picked_uids:
+            picked_uids = get_random_uids(self, k=self.config.neuron.sample_size)
+            bt.logging.debug(f"random picked uids: {picked_uids}")
        
         # Filter out validator's own uid and convert to Python int
-        checked_uids = [int(uid) for uid in miner_uids if uid != self.uid]
+        checked_uids = [int(uid) for uid in picked_uids if uid != self.uid]
         if not checked_uids:
             bt.logging.warning("No available nodes found after filtering")
             synapse.output = {"error": "No available nodes found"}
@@ -115,7 +130,6 @@ class Validator(BaseValidatorNeuron):
         uids = checked_uids  # Already converted to Python int
         uids.append(self.uid)
 
-        client = ServiceApiClient(self.current_api_key_value)
         # Log the results for monitoring purposes.
         data = {"uids": uids, "responses": responses, "chain": "bittensor", "uid": int(self.uid), "netuid": self.config.netuid}
         bt.logging.debug(
@@ -136,15 +150,15 @@ class Validator(BaseValidatorNeuron):
             # Use the calculated rewards when validation conditions are met
             rewards = [x / total for x in values]
             bt.logging.debug(f"Scored responses: {rewards}")
-            bt.logging.debug(f"Updating scores: {rewards}, {miner_uids}")
-            self.update_scores(rewards, miner_uids)
+            bt.logging.debug(f"Updating scores: {rewards}, {picked_uids}")
+            self.update_scores(rewards, picked_uids)
         else:
             # When validation conditions are not met, use empty rewards (will trigger stake-only scoring)
             bt.logging.warning(f"Validation conditions not met, using stake-only scoring. Result: {result}")
-            empty_rewards = [0.0] * len(miner_uids)  # Empty rewards to trigger stake-only mode
+            empty_rewards = [0.0] * len(picked_uids)  # Empty rewards to trigger stake-only mode
             bt.logging.debug(f"Empty rewards: {empty_rewards}")
-            bt.logging.debug(f"Updating scores with stake-only rewards: {miner_uids}")
-            self.update_scores(empty_rewards, miner_uids)
+            bt.logging.debug(f"Updating scores with stake-only rewards: {picked_uids}")
+            self.update_scores(empty_rewards, picked_uids)
         
         synapse.output = result
         # Use asyncio.sleep instead of time.sleep in async function
