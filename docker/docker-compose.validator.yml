@@ -1,5 +1,3 @@
-name: ${VALIDATOR_NAME:-bittensor-validator}
-
 services:
   # Validator service - can be deployed on a dedicated server
   bst-validator:

@@ -24,6 +24,6 @@ case $1 in
         deploy
         ;;
     *)
-        echo "Usage: $0 {manager|miner|validator} <build-run|run|stop|start|down|restart|check|logs>"
+        echo "Usage: $0 {manager|miner|validator} <build-run|run|stop|start|up|down|restart|check|logs>"
         exit 1
 esac 

@@ -62,16 +62,16 @@ build_image() {
         echo "docker image $docker_image, building..."
     fi
 
-    docker-compose --env-file .env -f docker/docker-compose.validator.yml build --force-rm
+    docker-compose --project-name $VALIDATOR_NAME --env-file .env -f docker/docker-compose.validator.yml build --force-rm
 }
 
 run_container() {
     # ensure logs directory exists
     mkdir -p logs
     
-    docker-compose --env-file .env -f docker/docker-compose.validator.yml down
+    docker-compose --project-name $VALIDATOR_NAME --env-file .env -f docker/docker-compose.validator.yml down
     # docker-compose -f docker-compose.validator.yml build
-    docker-compose --env-file .env -f docker/docker-compose.validator.yml up -d
+    docker-compose --project-name $VALIDATOR_NAME --env-file .env -f docker/docker-compose.validator.yml up -d
 }
 
 case $1 in
@@ -82,27 +82,27 @@ case $1 in
         run_container
         ;;  
     stop)
-        docker-compose --env-file .env -f docker/docker-compose.validator.yml stop
+        docker-compose --project-name $VALIDATOR_NAME --env-file .env -f docker/docker-compose.validator.yml stop
         ;;
     start)
-        docker-compose --env-file .env -f docker/docker-compose.validator.yml start
+        docker-compose --project-name $VALIDATOR_NAME --env-file .env -f docker/docker-compose.validator.yml start
         ;;
     up)
-        docker-compose --env-file .env -f docker/docker-compose.validator.yml up -d
+        docker-compose --project-name $VALIDATOR_NAME --env-file .env -f docker/docker-compose.validator.yml up -d
         ;;
     down)
-        docker-compose --env-file .env -f docker/docker-compose.validator.yml down
+        docker-compose --project-name $VALIDATOR_NAME --env-file .env -f docker/docker-compose.validator.yml down
         ;;
     restart)
-        docker-compose --env-file .env -f docker/docker-compose.validator.yml restart
+        docker-compose --project-name $VALIDATOR_NAME --env-file .env -f docker/docker-compose.validator.yml restart
         ;;
     check)
         check_image
         ;;
     logs)
-        docker-compose --env-file .env -f docker/docker-compose.validator.yml logs -f --tail 1000
+        docker-compose --project-name $VALIDATOR_NAME --env-file .env -f docker/docker-compose.validator.yml logs -f --tail 1000
         ;;
     *)
-        echo "Usage: $0 {build|run|stop|start|down|restart|check|logs}"
+        echo "Usage: $0 {build|run|stop|start|up|down|restart|check|logs}"
         exit 1
 esac 
