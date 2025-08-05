@@ -78,16 +78,15 @@ class Validator(BaseValidatorNeuron):
         try:
             result = client.get("/sapi/node/neuron/list", params={"flag": "dex-pool-validator,dex-pool-miner"})
             if result:
-                picked_uids = []
-                for item in result:
-                    picked_uids.append(int(item["channel"]))
+                picked_uids = self._filter_valid_axons([int(item["channel"]) for item in result])
                 bt.logging.debug(f"Api picked uids: {picked_uids}")
         except Exception as e:
             bt.logging.error(f"ServiceApiClient call failed: {e}")
 
         # get_random_uids is an example method, but you can replace it with your own.
         if not picked_uids:
-            picked_uids = get_random_uids(self, k=self.config.neuron.sample_size)
+            random_uids = get_random_uids(self, k=self.config.neuron.sample_size)
+            picked_uids = self._filter_valid_axons(random_uids)
             bt.logging.debug(f"random picked uids: {picked_uids}")
        
         # Filter out validator's own uid and convert to Python int
@@ -164,6 +163,26 @@ class Validator(BaseValidatorNeuron):
         # Use asyncio.sleep instead of time.sleep in async function
         await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
         return synapse
+
+    def _filter_valid_axons(self, uids):
+        """
+        Filter out UIDs with invalid axon configurations (0.0.0.0:0).
+        
+        Args:
+            uids: List of UIDs to filter
+            
+        Returns:
+            List of UIDs with valid axon configurations
+        """
+        valid_uids = []
+        for uid in uids:
+            uid_int = int(uid)
+            axon = self.metagraph.axons[uid_int]
+            if axon.ip == "0.0.0.0" or axon.port == 0:
+                bt.logging.debug(f"Skipping invalid axon for uid {uid_int}: {axon.ip}:{axon.port}")
+            else:
+                valid_uids.append(uid_int)
+        return valid_uids
     
 
     async def concurrent_forward(self):
