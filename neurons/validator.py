@@ -80,7 +80,7 @@ class Validator(BaseValidatorNeuron):
         if not checked_uids:
             bt.logging.warning("No available nodes found after filtering")
             synapse.output = {"error": "No available nodes found"}
-            time.sleep(settings.VALIDATOR_SLEEP_TIME)
+            await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
             return synapse
 
         bt.logging.debug(f"Validator forward uids: {checked_uids}, validator uid: {self.uid}, synapse: {synapse}")
@@ -129,7 +129,8 @@ class Validator(BaseValidatorNeuron):
             self.update_scores(empty_rewards, miner_uids)
         
         synapse.output = result
-        time.sleep(settings.VALIDATOR_SLEEP_TIME)
+        # Use asyncio.sleep instead of time.sleep in async function
+        await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
         return synapse
     
 
@@ -144,6 +145,11 @@ class Validator(BaseValidatorNeuron):
 # The main function parses the configuration and runs the validator.
 if __name__ == "__main__":
     with Validator() as validator:
-        while True:
-            bt.logging.debug(f"Validator running... {time.time()}")
-            time.sleep(settings.VALIDATOR_SLEEP_TIME)
+        # The validator is now running in a background thread
+        # We just need to keep the main thread alive
+        try:
+            # Keep the main thread running to allow the background validator to operate
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            bt.logging.info("Validator stopped by user")
