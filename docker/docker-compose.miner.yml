@@ -1,3 +1,5 @@
+name: ${MINER_NAME:-bittensor-miner}
+
 services:
   # Miner service - can be deployed on a dedicated server
   bst-miner:
