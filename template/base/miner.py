@@ -107,7 +107,9 @@ class BaseMinerNeuron(BaseNeuron):
         bt.logging.info(
             f"Serving miner axon {self.axon} on network: {self.config.subtensor.chain_endpoint} with netuid: {self.config.netuid}"
         )
-        self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
+        
+        # Update axon information on chain to refresh last_update
+        self.update_axon_on_chain()
 
         # Start  starts the miner's axon, making it active on the network.
         self.axon.start()
@@ -117,13 +119,18 @@ class BaseMinerNeuron(BaseNeuron):
         # This loop maintains the miner's operations until intentionally stopped.
         try:
             while not self.should_exit:
-                # bt.logging.trace(f"Waiting for block: {self.block} - {self.metagraph.last_update[self.uid]} < {self.config.neuron.epoch_length}")
-                while (
-                    self.block - self.metagraph.last_update[self.uid]
-                    < self.config.neuron.epoch_length
-                ):
+                # For miners, since last_update doesn't change, we use a different epoch calculation
+                # We can use the current block number to determine when to sync
+                current_block = self.block
+                bt.logging.trace(f"Current block: {current_block}")
+                epoch_start_block = (current_block // self.config.neuron.epoch_length) * self.config.neuron.epoch_length
+                
+                # Wait until we reach the next epoch block
+                while current_block < epoch_start_block + self.config.neuron.epoch_length:
                     # Wait before checking again.
                     time.sleep(settings.MINER_SLEEP_TIME)
+                    current_block = self.block
+                    bt.logging.trace(f"Current block: {current_block}")
 
                     # Check if we should exit.
                     if self.should_exit:
@@ -132,6 +139,10 @@ class BaseMinerNeuron(BaseNeuron):
                 # Sync metagraph and potentially set weights.
                 # bt.logging.info(f"Syncing metagraph")
                 self.sync()
+                
+                # Update axon information on chain to refresh last_update
+                self.update_axon_on_chain()
+                
                 self.step += 1
                 time.sleep(settings.MINER_SLEEP_TIME)
 
@@ -206,3 +217,22 @@ class BaseMinerNeuron(BaseNeuron):
             f"Incentive: {self.metagraph.I[self.uid]} | "
         )
         bt.logging.trace(log)
+
+    def update_axon_on_chain(self):
+        """Updates the axon information on the chain to refresh last_update."""
+        try:
+            # Serve axon to update axon information on chain
+            self.subtensor.serve_axon(
+                netuid=self.config.netuid,
+                axon=self.axon,
+            )
+            bt.logging.debug(f"Updated axon information on chain for miner uid: {self.uid}, current block: {self.block}")
+                
+        except Exception as e:
+            bt.logging.warning(f"Failed to update axon on chain via subtensor.serve_axon(): {e}")
+            # Fallback to axon.serve() if subtensor.serve_axon() fails
+            try:
+                self.axon.serve(netuid=self.config.netuid, subtensor=self.subtensor)
+                bt.logging.debug(f"Fallback to axon.serve() successful for miner uid: {self.uid}")
+            except Exception as fallback_error:
+                bt.logging.error(f"Both subtensor.serve_axon() and axon.serve() failed: {fallback_error}")
