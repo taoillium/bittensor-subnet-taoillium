@@ -85,7 +85,7 @@ git clone <repository-url>
 cd bittensor-subnet-taoillium
 
 # Install dependencies
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env

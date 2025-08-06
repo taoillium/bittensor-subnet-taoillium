@@ -233,7 +233,8 @@ class BaseValidatorNeuron(BaseNeuron):
                 
                 # Set loop limits for finney network
                 if self.config.subtensor.network == "finney":
-                    loop.slow_callback_duration = 0.1  # Reduce slow callback threshold
+                    loop.slow_callback_duration = 0.5  # Increase slow callback threshold for stability
+                    loop.set_debug(False)  # Disable debug mode for better performance
                 
                 try:
                     loop.run_until_complete(self.run())
