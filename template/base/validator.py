@@ -64,15 +64,8 @@ class BaseValidatorNeuron(BaseNeuron):
         if self.config.mock:
             self.dendrite = MockDendrite(wallet=self.wallet)
         else:
-            # Initialize dendrite with specific configuration for finney network
-            if self.config.subtensor.network == "finney":
-                # Use more conservative settings for finney network
-                # Create dendrite with minimal configuration for finney network
-                self.dendrite = bt.dendrite(wallet=self.wallet)
-                bt.logging.info(f"Dendrite initialized for finney network: {self.dendrite}")
-            else:
-                self.dendrite = bt.dendrite(wallet=self.wallet)
-                bt.logging.info(f"Dendrite: {self.dendrite}")
+            self.dendrite = bt.dendrite(wallet=self.wallet)
+            bt.logging.info(f"Dendrite: {self.dendrite}")
 
         # Set up initial scoring weights for validation
         bt.logging.info("Building validation weights.")

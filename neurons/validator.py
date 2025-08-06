@@ -103,29 +103,15 @@ class Validator(BaseValidatorNeuron):
         
         # Use batch dendrite call with proper error handling for all networks
         try:
-            # Use sequential calls to avoid context manager issues on all networks
-            responses = []
-            for uid in checked_uids:
-                try:
-                    # Use simple sequential calls without any timeout or task management
-                    response = await self.dendrite(
-                        axons=[self.metagraph.axons[uid]],
-                        synapse=synapse,
-                        deserialize=True,
-                    )
-                    
-                    if isinstance(response, list) and len(response) > 0:
-                        responses.extend(response)
-                    else:
-                        error_response = {"method": "ping", "success": False, "uid": uid, "error": "no_response"}
-                        responses.append(error_response)
-                        
-                except Exception as individual_error:
-                    bt.logging.error(f"Individual dendrite call failed for uid {uid}: {individual_error}")
-                    error_response = {"method": "ping", "success": False, "uid": uid, "error": str(individual_error)}
-                    responses.append(error_response)
-                    
-            bt.logging.info(f"Completed sequential dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
+            # Use batch calls with minimal configuration to avoid context manager issues
+            responses = await self.dendrite(
+                axons=[self.metagraph.axons[uid] for uid in checked_uids],
+                synapse=synapse,
+                deserialize=True,
+                # Don't use timeout parameter to avoid context manager issues
+            )
+            
+            bt.logging.info(f"Completed batch dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
             
             # Ensure responses is a list
             if not isinstance(responses, list):
