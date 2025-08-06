@@ -101,7 +101,7 @@ class Validator(BaseValidatorNeuron):
         # The dendrite client queries the network with proper timeout handling.
         responses = []
         
-                # Use conservative dendrite calls to minimize context manager issues
+        # Use conservative dendrite calls to minimize context manager issues
         try:
             # Use individual calls with minimal configuration
             responses = []
