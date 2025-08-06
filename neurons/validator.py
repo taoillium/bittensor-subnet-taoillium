@@ -101,24 +101,31 @@ class Validator(BaseValidatorNeuron):
         # The dendrite client queries the network with proper timeout handling.
         responses = []
         
-        # Use batch dendrite call with proper error handling for finney network
+        # Use batch dendrite call with proper error handling for all networks
         try:
-            # For finney network, use a more conservative approach
-            if self.config.subtensor.network == "finney":
-                # Create mock responses for finney network to avoid context manager issues
-                responses = []
-                for uid in checked_uids:
-                    # For now, create mock responses to avoid the timeout context manager issue
-                    mock_response = {"method": "ping", "success": True, "uid": uid, "response": "mock_response"}
-                    responses.append(mock_response)
-                bt.logging.info(f"Using mock responses for finney network to avoid context manager issues")
-            else:
-                responses = await self.dendrite(
-                    axons=[self.metagraph.axons[uid] for uid in checked_uids],
-                    synapse=synapse,
-                    deserialize=True,
-                    timeout=8.0,
-                )
+            # Use sequential calls to avoid context manager issues on all networks
+            responses = []
+            for uid in checked_uids:
+                try:
+                    # Use simple sequential calls without any timeout or task management
+                    response = await self.dendrite(
+                        axons=[self.metagraph.axons[uid]],
+                        synapse=synapse,
+                        deserialize=True,
+                    )
+                    
+                    if isinstance(response, list) and len(response) > 0:
+                        responses.extend(response)
+                    else:
+                        error_response = {"method": "ping", "success": False, "uid": uid, "error": "no_response"}
+                        responses.append(error_response)
+                        
+                except Exception as individual_error:
+                    bt.logging.error(f"Individual dendrite call failed for uid {uid}: {individual_error}")
+                    error_response = {"method": "ping", "success": False, "uid": uid, "error": str(individual_error)}
+                    responses.append(error_response)
+                    
+            bt.logging.info(f"Completed sequential dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
             
             # Ensure responses is a list
             if not isinstance(responses, list):
@@ -126,11 +133,11 @@ class Validator(BaseValidatorNeuron):
                 
         except Exception as e:
             bt.logging.error(f"Batch dendrite call failed: {e}")
-            # Create mock responses for all UIDs when batch call fails
+            # Create error responses for all UIDs when batch call fails
             responses = []
             for uid in checked_uids:
-                mock_response = {"method": "ping", "success": False, "uid": uid, "error": str(e)}
-                responses.append(mock_response)
+                error_response = {"method": "ping", "success": False, "uid": uid, "error": str(e)}
+                responses.append(error_response)
 
         
         # Ensure responses is a list even if dendrite call failed
@@ -212,9 +219,23 @@ class Validator(BaseValidatorNeuron):
         except Exception as e:
             bt.logging.error(f"Forward call failed: {e}")
             
-        # Add a longer delay for finney network to reduce event loop pressure
-        if self.config.subtensor.network == "finney":
-            await asyncio.sleep(1.0)  # Longer delay to reduce pressure
+        # Add a delay to reduce event loop pressure on all networks
+        await asyncio.sleep(0.5)  # Delay to reduce pressure
+            
+        # Periodically clean up event loop state for all networks
+        try:
+            loop = asyncio.get_running_loop()
+            # Cancel any pending tasks that might be causing issues
+            pending_tasks = [task for task in asyncio.all_tasks(loop) if not task.done()]
+            if len(pending_tasks) > 15:  # If too many pending tasks
+                bt.logging.warning(f"Too many pending tasks: {len(pending_tasks)}, cleaning up...")
+                # Cancel tasks that are not the main validator task
+                for task in pending_tasks:
+                    if not task.done() and task.get_name() != "Validator":
+                        task.cancel()
+                        bt.logging.debug(f"Cancelled task: {task.get_name()}")
+        except Exception as cleanup_error:
+            bt.logging.debug(f"Event loop cleanup failed: {cleanup_error}")
 
 
 # The main function parses the configuration and runs the validator.

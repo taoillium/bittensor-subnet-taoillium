@@ -221,20 +221,19 @@ class BaseValidatorNeuron(BaseNeuron):
                 import asyncio
                 import sys
                 
-                if self.config.subtensor.network == "finney":
-                    # Use a more conservative event loop policy for finney network
-                    if sys.platform.startswith('win'):
-                        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-                    else:
-                        asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
+                # Use a conservative event loop policy for all networks
+                if sys.platform.startswith('win'):
+                    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+                else:
+                    asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
                 
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 
-                # Set loop limits for finney network
-                if self.config.subtensor.network == "finney":
-                    loop.slow_callback_duration = 0.5  # Increase slow callback threshold for stability
-                    loop.set_debug(False)  # Disable debug mode for better performance
+                # Set conservative loop limits for all networks
+                loop.slow_callback_duration = 1.0  # Increase slow callback threshold for stability
+                loop.set_debug(False)  # Disable debug mode for better performance
+                # Note: Don't modify default executor as it can cause issues
                 
                 try:
                     loop.run_until_complete(self.run())
