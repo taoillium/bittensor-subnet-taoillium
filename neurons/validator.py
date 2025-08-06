@@ -77,7 +77,7 @@ class Validator(BaseValidatorNeuron):
         picked_uids = []
         from_random = False
         try:
-            result = client.get("/sapi/node/neuron/list", params={"flag": "dex-pool-validator,dex-pool-miner"})
+            result = client.get("/sapi/node/neuron/list-valid")
             if result:
                 picked_uids = self._filter_valid_axons([int(item["channel"]) for item in result])
                 bt.logging.debug(f"Api picked uids: {picked_uids}")
