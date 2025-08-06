@@ -164,7 +164,7 @@ class BaseNeuron(ABC):
             if result.get("nodeToken"):
                 self.current_api_key_value = result.get("nodeToken").get("access_token")
                 self.last_service_token_expire = result.get("nodeToken").get("exp")
-                bt.logging.info(f"Using NODE_TOKEN from business server: {self.current_api_key_value}, expires at: {self.last_service_token_expire}")
+                bt.logging.info(f"Using NODE_TOKEN from business server, expires at: {self.last_service_token_expire}")
             else:
                 bt.logging.error(f"Failed to login to business server: {result}")
         except Exception as e:
