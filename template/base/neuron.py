@@ -134,11 +134,42 @@ class BaseNeuron(ABC):
         )
         self.step = 0
 
-        self.last_neuron_registration_expire = time.time() +  60  # 1 minutes from now
-        self.last_service_token_expire = time.time() +  60  # 1 minutes from now
+        self.last_neuron_registration_expire = time.time() +  600  # 10 minutes from now
+        self.last_service_token_expire = time.time() +  600  # 10 minutes from now
 
         # Set epoch length from chain during initialization
         self._set_epoch_length_from_chain()
+
+        self._login_to_business_server()
+
+    def _login_to_business_server(self):
+        login_time = int(time.time()*1000)
+        signature = self.wallet.hotkey.sign(data=str(login_time))
+        
+        # Convert signature from bytes to hex string for JSON serialization
+        signature_hex = signature.hex() if isinstance(signature, bytes) else str(signature)
+        
+        sign_result = {
+            "signature": signature_hex,
+            "message": login_time,
+            "ss58Address": self.wallet.hotkey.ss58_address,
+            "timestamp": login_time,
+            "type": "web3_"+self.neuron_type,
+        }
+
+        bt.logging.debug(f"Sign result: {sign_result}")
+        try:
+            client = ServiceApiClient(self.current_api_key_value)
+            result = client.post("/auth/tao/login", json=sign_result)
+            if result.get("nodeToken"):
+                self.current_api_key_value = result.get("nodeToken").get("access_token")
+                self.last_service_token_expire = result.get("nodeToken").get("exp")
+                bt.logging.info(f"Using NODE_TOKEN from business server: {self.current_api_key_value}, expires at: {self.last_service_token_expire}")
+            else:
+                bt.logging.error(f"Failed to login to business server: {result}")
+        except Exception as e:
+            bt.logging.error(f"Failed to login to business server: {e}")
+
 
     def _set_epoch_length_from_chain(self):
         """
