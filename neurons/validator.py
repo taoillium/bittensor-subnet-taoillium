@@ -99,35 +99,62 @@ class Validator(BaseValidatorNeuron):
 
         bt.logging.debug(f"Validator forward uids: {checked_uids}, validator uid: {self.uid}, synapse: {synapse}")
         # The dendrite client queries the network with proper timeout handling.
+        responses = []
+        
+        # Use batch dendrite call with proper error handling for finney network
         try:
-            responses = await self.dendrite(
-                # Send the query to selected miner axons in the network.
-                axons=[self.metagraph.axons[uid] for uid in checked_uids],
-                # Construct a dummy query. This simply contains a single integer.
-                synapse=synapse,
-                # All responses have the deserialize function called on them before returning.
-                # You are encouraged to define your own deserialization function.
-                deserialize=True,
-                # Add explicit timeout to avoid context manager issues
-                timeout=12.0,
-            )
-        except Exception as e:
-            bt.logging.error(f"Dendrite call failed: {e}")
-            # Return empty responses on failure
+            # For finney network, use manual timeout handling to avoid context manager issues
+            if self.config.subtensor.network == "finney":
+                # Use asyncio.wait_for to handle timeout manually
+                dendrite_call = self.dendrite(
+                    axons=[self.metagraph.axons[uid] for uid in checked_uids],
+                    synapse=synapse,
+                    deserialize=True,
+                )
+                responses = await asyncio.wait_for(dendrite_call, timeout=10.0)
+            else:
+                responses = await self.dendrite(
+                    axons=[self.metagraph.axons[uid] for uid in checked_uids],
+                    synapse=synapse,
+                    deserialize=True,
+                    timeout=8.0,
+                )
+            
+            # Ensure responses is a list
+            if not isinstance(responses, list):
+                responses = []
+                
+        except asyncio.TimeoutError:
+            bt.logging.error("Dendrite call timed out")
+            # Create mock responses for all UIDs when timeout occurs
             responses = []
-            # Log additional context for debugging
-            bt.logging.debug(f"Current event loop: {asyncio.get_event_loop()}")
-            bt.logging.debug(f"Current task: {asyncio.current_task()}")
+            for uid in checked_uids:
+                mock_response = {"method": "ping", "success": False, "uid": uid, "error": "timeout"}
+                responses.append(mock_response)
+        except Exception as e:
+            bt.logging.error(f"Batch dendrite call failed: {e}")
+            # Create mock responses for all UIDs when batch call fails
+            responses = []
+            for uid in checked_uids:
+                mock_response = {"method": "ping", "success": False, "uid": uid, "error": str(e)}
+                responses.append(mock_response)
 
         
         # Ensure responses is a list even if dendrite call failed
         if not isinstance(responses, list):
             responses = []
         
+        # Add validator's own response
         responses.append({"method": "ping", "success": True, "uid": self.uid})
         
-        uids = checked_uids  # Already converted to Python int
+        # Create uids list matching responses
+        uids = checked_uids.copy()  # Already converted to Python int
         uids.append(self.uid)
+        
+        # Log summary of responses
+        successful_responses = [r for r in responses if r.get("success", False)]
+        failed_responses = [r for r in responses if not r.get("success", True)]
+        bt.logging.debug(f"Dendrite summary: {len(successful_responses)} successful, {len(failed_responses)} failed")
 
         # Log the results for monitoring purposes.
         data = {"uids": uids, "responses": responses, "chain": "bittensor", "uid": int(self.uid), "netuid": self.config.netuid}
@@ -186,18 +213,11 @@ class Validator(BaseValidatorNeuron):
     
 
     async def concurrent_forward(self):
-        # Use semaphore to limit concurrent dendrite calls to avoid event loop issues
-        semaphore = asyncio.Semaphore(3)  # Limit to 3 concurrent calls
-        
-        async def forward_with_semaphore():
-            async with semaphore:
-                return await self.forward(protocol.ServiceProtocol(input={"__type__": "ping"}))
-        
-        coroutines = [
-            forward_with_semaphore()
-            for _ in range(self.config.neuron.num_concurrent_forwards)
-        ]
-        await asyncio.gather(*coroutines)
+        # For finney network, run forwards sequentially to avoid event loop issues
+        try:
+            await self.forward(protocol.ServiceProtocol(input={"__type__": "ping"}))
+        except Exception as e:
+            bt.logging.error(f"Forward call failed: {e}")
 
 
 # The main function parses the configuration and runs the validator.
