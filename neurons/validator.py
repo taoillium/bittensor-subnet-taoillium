@@ -101,25 +101,36 @@ class Validator(BaseValidatorNeuron):
         # The dendrite client queries the network with proper timeout handling.
         responses = []
         
-        # Use batch dendrite call with proper error handling for all networks
+                # Use conservative dendrite calls to minimize context manager issues
         try:
-            # Use batch calls with minimal configuration to avoid context manager issues
-            responses = await self.dendrite(
-                axons=[self.metagraph.axons[uid] for uid in checked_uids],
-                synapse=synapse,
-                deserialize=True,
-                # Don't use timeout parameter to avoid context manager issues
-            )
+            # Use individual calls with minimal configuration
+            responses = []
+            for uid in checked_uids:
+                try:
+                    # Use individual dendrite calls without any timeout parameters
+                    response = await self.dendrite(
+                        axons=[self.metagraph.axons[uid]],
+                        synapse=synapse,
+                        deserialize=True,
+                        # No timeout parameter to avoid context manager issues
+                    )
+                    
+                    if isinstance(response, list) and len(response) > 0:
+                        responses.extend(response)
+                    else:
+                        error_response = {"method": "ping", "success": False, "uid": uid, "error": "no_response"}
+                        responses.append(error_response)
+                        
+                except Exception as individual_error:
+                    bt.logging.error(f"Individual dendrite call failed for uid {uid}: {individual_error}")
+                    error_response = {"method": "ping", "success": False, "uid": uid, "error": str(individual_error)}
+                    responses.append(error_response)
             
-            bt.logging.info(f"Completed batch dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
+            bt.logging.info(f"Completed individual dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
             
-            # Ensure responses is a list
-            if not isinstance(responses, list):
-                responses = []
-                
         except Exception as e:
-            bt.logging.error(f"Batch dendrite call failed: {e}")
-            # Create error responses for all UIDs when batch call fails
+            bt.logging.error(f"Individual dendrite calls failed: {e}")
+            # Create error responses for all UIDs when all calls fail
             responses = []
             for uid in checked_uids:
                 error_response = {"method": "ping", "success": False, "uid": uid, "error": str(e)}
@@ -206,14 +217,14 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"Forward call failed: {e}")
             
         # Add a delay to reduce event loop pressure on all networks
-        await asyncio.sleep(0.5)  # Delay to reduce pressure
+        await asyncio.sleep(1.0)  # Longer delay to reduce pressure
             
         # Periodically clean up event loop state for all networks
         try:
             loop = asyncio.get_running_loop()
             # Cancel any pending tasks that might be causing issues
             pending_tasks = [task for task in asyncio.all_tasks(loop) if not task.done()]
-            if len(pending_tasks) > 15:  # If too many pending tasks
+            if len(pending_tasks) > 10:  # If too many pending tasks
                 bt.logging.warning(f"Too many pending tasks: {len(pending_tasks)}, cleaning up...")
                 # Cancel tasks that are not the main validator task
                 for task in pending_tasks:
