@@ -90,7 +90,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.debug(f"random picked uids: {picked_uids}")
        
         # Filter out validator's own uid and convert to Python int
-        checked_uids = [int(uid) for uid in picked_uids if uid != self.uid]
+        checked_uids = [int(uid) for uid in picked_uids if int(uid) != self.uid]
         if not checked_uids:
             bt.logging.warning("No available nodes found after filtering")
             synapse.output = {"error": "No available nodes found"}
