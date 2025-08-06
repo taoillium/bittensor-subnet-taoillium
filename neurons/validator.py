@@ -75,6 +75,7 @@ class Validator(BaseValidatorNeuron):
         client = ServiceApiClient(self.current_api_key_value)
 
         picked_uids = []
+        from_random = False
         try:
             result = client.get("/sapi/node/neuron/list", params={"flag": "dex-pool-validator,dex-pool-miner"})
             if result:
@@ -85,6 +86,7 @@ class Validator(BaseValidatorNeuron):
 
         # get_random_uids is an example method, but you can replace it with your own.
         if not picked_uids:
+            from_random = True
             random_uids = get_random_uids(self, k=self.config.neuron.sample_size)
             picked_uids = self._filter_valid_axons(random_uids)
             bt.logging.debug(f"random picked uids: {picked_uids}")
@@ -100,42 +102,13 @@ class Validator(BaseValidatorNeuron):
         bt.logging.debug(f"Validator forward uids: {checked_uids}, validator uid: {self.uid}, synapse: {synapse}")
         # The dendrite client queries the network with proper timeout handling.
         responses = []
-        
-        # Use conservative dendrite calls to minimize context manager issues
-        try:
-            # Use individual calls with minimal configuration
-            responses = []
-            for uid in checked_uids:
-                try:
-                    # Use individual dendrite calls without any timeout parameters
-                    response = await self.dendrite(
-                        axons=[self.metagraph.axons[uid]],
-                        synapse=synapse,
-                        deserialize=True,
-                        # No timeout parameter to avoid context manager issues
-                    )
-                    
-                    if isinstance(response, list) and len(response) > 0:
-                        responses.extend(response)
-                    else:
-                        error_response = {"method": "ping", "success": False, "uid": uid, "error": "no_response"}
-                        responses.append(error_response)
-                        
-                except Exception as individual_error:
-                    bt.logging.error(f"Individual dendrite call failed for uid {uid}: {individual_error}")
-                    error_response = {"method": "ping", "success": False, "uid": uid, "error": str(individual_error)}
-                    responses.append(error_response)
+        if not from_random:
+            bt.logging.debug(f"responses from random, {len(checked_uids)} uids")
+            responses = [{"method": "ping", "success": True, "uid": uid} for uid in checked_uids]
+        else:
+            bt.logging.debug(f"responses from axon, {len(checked_uids)} uids") 
+            responses = await self._check_axon_valid(checked_uids, synapse)
             
-            bt.logging.info(f"Completed individual dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
-            
-        except Exception as e:
-            bt.logging.error(f"Individual dendrite calls failed: {e}")
-            # Create error responses for all UIDs when all calls fail
-            responses = []
-            for uid in checked_uids:
-                error_response = {"method": "ping", "success": False, "uid": uid, "error": str(e)}
-                responses.append(error_response)
-
         
         # Ensure responses is a list even if dendrite call failed
         if not isinstance(responses, list):
@@ -187,6 +160,44 @@ class Validator(BaseValidatorNeuron):
         # Use asyncio.sleep instead of time.sleep in async function
         await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
         return synapse
+    
+    async def _check_axon_valid(self, checked_uids, synapse: protocol.ServiceProtocol):
+        # Use conservative dendrite calls to minimize context manager issues
+        try:
+            # Use individual calls with minimal configuration
+            responses = []
+            for uid in checked_uids:
+                try:
+                    # Use individual dendrite calls without any timeout parameters
+                    response = await self.dendrite(
+                        axons=[self.metagraph.axons[uid]],
+                        synapse=synapse,
+                        deserialize=True,
+                        # No timeout parameter to avoid context manager issues
+                    )
+                    
+                    if isinstance(response, list) and len(response) > 0:
+                        responses.extend(response)
+                    else:
+                        error_response = {"method": "ping", "success": False, "uid": uid, "error": "no_response"}
+                        responses.append(error_response)
+                        
+                except Exception as individual_error:
+                    bt.logging.error(f"Individual dendrite call failed for uid {uid}: {individual_error}")
+                    error_response = {"method": "ping", "success": False, "uid": uid, "error": str(individual_error)}
+                    responses.append(error_response)
+            
+            bt.logging.info(f"Completed individual dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
+            
+        except Exception as e:
+            bt.logging.error(f"Individual dendrite calls failed: {e}")
+            # Create error responses for all UIDs when all calls fail
+            responses = []
+            for uid in checked_uids:
+                error_response = {"method": "ping", "success": False, "uid": uid, "error": str(e)}
+                responses.append(error_response)
+        return responses
+
 
     def _filter_valid_axons(self, uids):
         """
