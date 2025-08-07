@@ -92,7 +92,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.debug(f"random picked uids: {picked_uids}")
        
         # Filter out validator's own uid and convert to Python int
-        checked_uids = [int(uid) for uid in picked_uids if int(uid) != self.uid]
+        checked_uids = [int(uid) for uid in picked_uids if int(uid) != int(self.uid)]
         if not checked_uids:
             bt.logging.warning("No available nodes found after filtering")
             synapse.output = {"error": "No available nodes found"}
@@ -101,13 +101,13 @@ class Validator(BaseValidatorNeuron):
 
         bt.logging.debug(f"Validator forward uids: {checked_uids}, validator uid: {self.uid}, synapse: {synapse}")
         # The dendrite client queries the network with proper timeout handling.
-        responses = []
-        if not from_random:
-            bt.logging.debug(f"responses from random, {len(checked_uids)} uids")
-            responses = [{"method": "ping", "success": True, "uid": uid} for uid in checked_uids]
-        else:
-            bt.logging.debug(f"responses from axon, {len(checked_uids)} uids") 
-            responses = await self._check_axon_valid(checked_uids, synapse)
+        # responses = []
+        # if not from_random:
+        #     bt.logging.debug(f"responses from random, {len(checked_uids)} uids")
+        #     responses = [{"method": "ping", "success": True, "uid": uid} for uid in checked_uids]
+        # else:
+        #     bt.logging.debug(f"responses from axon, {len(checked_uids)} uids") 
+        responses = await self._check_axon_valid(checked_uids, synapse)
             
         
         # Ensure responses is a list even if dendrite call failed
@@ -165,27 +165,15 @@ class Validator(BaseValidatorNeuron):
         # Use conservative dendrite calls to minimize context manager issues
         try:
             # Use individual calls with minimal configuration
-            responses = []
-            for uid in checked_uids:
-                try:
-                    # Use individual dendrite calls without any timeout parameters
-                    response = await self.dendrite(
-                        axons=[self.metagraph.axons[uid]],
-                        synapse=synapse,
-                        deserialize=True,
-                        # No timeout parameter to avoid context manager issues
-                    )
-                    
-                    if isinstance(response, list) and len(response) > 0:
-                        responses.extend(response)
-                    else:
-                        error_response = {"method": "ping", "success": False, "uid": uid, "error": "no_response"}
-                        responses.append(error_response)
-                        
-                except Exception as individual_error:
-                    bt.logging.error(f"Individual dendrite call failed for uid {uid}: {individual_error}")
-                    error_response = {"method": "ping", "success": False, "uid": uid, "error": str(individual_error)}
-                    responses.append(error_response)
+            responses = await self.dendrite(
+                # Send the query to selected miner axons in the network.
+                axons=[self.metagraph.axons[uid] for uid in checked_uids],
+                # Construct a dummy query. This simply contains a single integer.
+                synapse=synapse,
+                # All responses have the deserialize function called on them before returning.
+                # You are encouraged to define your own deserialization function.
+                deserialize=True,
+            )
             
             bt.logging.info(f"Completed individual dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
             
@@ -223,12 +211,14 @@ class Validator(BaseValidatorNeuron):
     async def concurrent_forward(self):
         # For finney network, run forwards sequentially to avoid event loop issues
         try:
-            await self.forward(protocol.ServiceProtocol(input={"__type__": "ping"}))
+            for _ in range(self.config.neuron.num_concurrent_forwards): 
+                await self.forward(protocol.ServiceProtocol(input={"__type__": "ping", "from": self.uid}))
+                await asyncio.sleep(0.3)
         except Exception as e:
             bt.logging.error(f"Forward call failed: {e}")
             
         # Add a delay to reduce event loop pressure on all networks
-        await asyncio.sleep(1.0)  # Longer delay to reduce pressure
+        await asyncio.sleep(0.5)  # Longer delay to reduce pressure
             
         # Periodically clean up event loop state for all networks
         try:

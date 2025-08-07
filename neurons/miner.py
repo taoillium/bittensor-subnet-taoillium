@@ -61,10 +61,14 @@ class Miner(BaseMinerNeuron):
             synapse.output = {"method": "ping", "success": True, "uid": self.uid}
             return synapse
         else:
-            client = ServiceApiClient(self.current_api_key_value)
-            synapse.input["uid"] = self.uid
-            response = client.post("/sapi/node/task/create", json=synapse.input)
-            synapse.output = response
+            try:
+                client = ServiceApiClient(self.current_api_key_value)
+                synapse.input["uid"] = self.uid
+                response = client.post("/sapi/node/task/create", json=synapse.input)
+                synapse.output = response
+            except Exception as e:
+                bt.logging.error(f"Miner forward error: {e}")
+                synapse.output = {"method": "taskCreate", "success": False, "uid": self.uid, "error": str(e)}
             
         bt.logging.debug(f"Miner forward synapse.output: {synapse.output}")
         return synapse
