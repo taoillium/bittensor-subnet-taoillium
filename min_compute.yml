@@ -21,7 +21,7 @@ compute_spec:
       architecture: "x86_64"  # Architecture type (e.g., x86_64, arm64)
 
     gpu:
-      required: True                       # Does the application require a GPU?
+      required: False                       # Does the application require a GPU?
       min_vram: 8                          # Minimum GPU VRAM (GB)
       recommended_vram: 24                 # Recommended GPU VRAM (GB)
       cuda_cores: 1024                     # Minimum number of CUDA cores (if applicable)
@@ -30,8 +30,9 @@ compute_spec:
       recommended_gpu: "NVIDIA A100"       # provide a recommended GPU to purchase/rent
 
     memory:
-      min_ram: 16          # Minimum RAM (GB)
-      min_swap: 4          # Minimum swap space (GB)
+      min_ram: 8          # Minimum RAM (GB)
+      min_swap: 0          # Minimum swap space (GB)
+      recommended_ram: 16   # Recommended RAM (GB)
       recommended_swap: 8  # Recommended swap space (GB)
       ram_type: "DDR4"     # RAM type (e.g., DDR4, DDR3, etc.)
 
@@ -44,7 +45,7 @@ compute_spec:
 
     os:
       name: "Ubuntu"  # Name of the preferred operating system(s)
-      version: 20.04  # Version of the preferred operating system(s)
+      version: 24.04  # Version of the preferred operating system(s)
 
   validator:
 
@@ -56,7 +57,7 @@ compute_spec:
       architecture: "x86_64"  # Architecture type (e.g., x86_64, arm64)
 
     gpu:
-      required: True                       # Does the application require a GPU?
+      required: False                       # Does the application require a GPU?
       min_vram: 8                          # Minimum GPU VRAM (GB)
       recommended_vram: 24                 # Recommended GPU VRAM (GB)
       cuda_cores: 1024                     # Minimum number of CUDA cores (if applicable)
@@ -65,8 +66,9 @@ compute_spec:
       recommended_gpu: "NVIDIA A100"       # provide a recommended GPU to purchase/rent
 
     memory:
-      min_ram: 16          # Minimum RAM (GB)
-      min_swap: 4          # Minimum swap space (GB)
+      min_ram: 8          # Minimum RAM (GB)
+      min_swap: 0          # Minimum swap space (GB)
+      recommended_ram: 16   # Recommended RAM (GB)
       recommended_swap: 8  # Recommended swap space (GB)
       ram_type: "DDR4"     # RAM type (e.g., DDR4, DDR3, etc.)
 
@@ -79,7 +81,7 @@ compute_spec:
 
     os:
       name: "Ubuntu"  # Name of the preferred operating system(s)
-      version: 20.04  # Version of the preferred operating system(s)
+      version: 24.04  # Version of the preferred operating system(s)
 
 network_spec:
   bandwidth:
