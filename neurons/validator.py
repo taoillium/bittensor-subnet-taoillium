@@ -70,7 +70,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.info(f"Validator health synapse.input: {synapse.input})")
             synapse.output = {"method": "health", "success": True, "uid": self.uid, "device": self.device}
         elif synapse.input.get("__type__") == "ping":
-            bt.logging.debug(f"Validator ping synapse.input: {synapse.input})")
+            bt.logging.info(f"Validator ping synapse.input: {synapse.input})")
 
         client = ServiceApiClient(self.current_api_key_value)
 
