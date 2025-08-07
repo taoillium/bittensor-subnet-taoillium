@@ -70,7 +70,7 @@ class Miner(BaseMinerNeuron):
                 bt.logging.error(f"Miner forward error: {e}")
                 synapse.output = {"method": "taskCreate", "success": False, "uid": self.uid, "error": str(e)}
             
-        bt.logging.debug(f"Miner forward synapse.output: {synapse.output}")
+        bt.logging.info(f"Miner forward synapse.input: {synapse.input}, synapse.output: {synapse.output}")
         return synapse
 
 
