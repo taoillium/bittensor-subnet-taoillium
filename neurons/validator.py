@@ -131,7 +131,7 @@ class Validator(BaseValidatorNeuron):
 
         # Log the results for monitoring purposes.
         data = {"uids": uids, "responses": responses, "chain": "bittensor", "uid": int(self.uid), "netuid": self.config.netuid}
-        bt.logging.debug(
+        bt.logging.info(
             f"request node/task/validate: {data}"
         )
         try:
@@ -139,7 +139,7 @@ class Validator(BaseValidatorNeuron):
         except Exception as e:
             bt.logging.error(f"ServiceApiClient call failed: {e}")
             result = {"error": str(e), "values": [], "uids": uids}
-        bt.logging.debug(f"Validate result: {result}")
+        bt.logging.info(f"Validate result: {result}")
         values = result.get('values', [])
         total = sum(values)
         if result.get("error"):
@@ -181,7 +181,7 @@ class Validator(BaseValidatorNeuron):
                 deserialize=True,
             )
             
-            bt.logging.info(f"Completed individual dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
+            bt.logging.debug(f"Completed individual dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
             
         except Exception as e:
             bt.logging.error(f"Individual dendrite calls failed: {e}")
