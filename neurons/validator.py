@@ -96,7 +96,6 @@ class Validator(BaseValidatorNeuron):
         if not checked_uids:
             bt.logging.warning("No available nodes found after filtering")
             synapse.output = {"error": "No available nodes found"}
-            await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
             return synapse
 
         bt.logging.debug(f"Validator forward uids: {checked_uids}, validator uid: {self.uid}, synapse: {synapse}")
@@ -157,8 +156,6 @@ class Validator(BaseValidatorNeuron):
             self.update_scores(empty_rewards, picked_uids)
         
         synapse.output = result
-        # Use asyncio.sleep instead of time.sleep in async function
-        await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
         return synapse
     
     async def _check_axon_valid(self, checked_uids, synapse: protocol.ServiceProtocol):
@@ -211,14 +208,12 @@ class Validator(BaseValidatorNeuron):
     async def concurrent_forward(self):
         # For finney network, run forwards sequentially to avoid event loop issues
         try:
-            for _ in range(self.config.neuron.num_concurrent_forwards): 
-                await self.forward(protocol.ServiceProtocol(input={"__type__": "ping", "from": self.uid}))
-                await asyncio.sleep(0.3)
+            await self.forward(protocol.ServiceProtocol(input={"__type__": "ping", "from": self.uid}))
         except Exception as e:
             bt.logging.error(f"Forward call failed: {e}")
             
         # Add a delay to reduce event loop pressure on all networks
-        await asyncio.sleep(0.5)  # Longer delay to reduce pressure
+        await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
             
         # Periodically clean up event loop state for all networks
         try:
