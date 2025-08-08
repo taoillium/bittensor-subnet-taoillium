@@ -62,6 +62,9 @@ class Validator(BaseValidatorNeuron):
             self (:obj:`bittensor.neuron.Neuron`): The neuron object which contains all the necessary state for the validator.
 
         """
+        # Force sync metagraph to ensure latest axon information
+        self.sync()
+        
         bt.logging.debug(f"Validator forward synapse.input: {synapse}")
         if synapse.input.get("__type__") == "miner":
             synapse.output = {"error": "validator skip miner task", "uid": self.uid}
@@ -161,6 +164,11 @@ class Validator(BaseValidatorNeuron):
     async def _check_axon_valid(self, checked_uids, synapse: protocol.ServiceProtocol):
         # Use conservative dendrite calls to minimize context manager issues
         try:
+            # Debug axon information
+            for uid in checked_uids:
+                axon = self.metagraph.axons[uid]
+                bt.logging.debug(f"UID {uid} axon: {axon.ip}:{axon.port}, serving: {axon.is_serving}")
+            
             # Use individual calls with minimal configuration
             responses = await self.dendrite(
                 # Send the query to selected miner axons in the network.
