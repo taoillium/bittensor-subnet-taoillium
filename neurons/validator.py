@@ -63,7 +63,8 @@ class Validator(BaseValidatorNeuron):
 
         """
         # Force sync metagraph to ensure latest axon information
-        self.sync()
+        self.set_subtensor()
+        self.resync_metagraph()
         
         bt.logging.debug(f"Validator forward synapse.input: {synapse}")
         if synapse.input.get("__type__") == "miner":
