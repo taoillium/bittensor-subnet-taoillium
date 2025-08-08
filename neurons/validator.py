@@ -167,7 +167,7 @@ class Validator(BaseValidatorNeuron):
             # Debug axon information
             for uid in checked_uids:
                 axon = self.metagraph.axons[uid]
-                bt.logging.debug(f"UID {uid} axon: {axon.ip}:{axon.port}, serving: {axon.is_serving}")
+                bt.logging.debug(f"_check_axon_valid UID {uid} axon: {axon.ip}:{axon.port}, serving: {axon.is_serving}")
             
             # Use individual calls with minimal configuration
             responses = await self.dendrite(
