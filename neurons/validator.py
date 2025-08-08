@@ -125,13 +125,15 @@ class Validator(BaseValidatorNeuron):
         uids.append(self.uid)
         
         # Log summary of responses
-        successful_responses = [r for r in responses if r.get("success", False)]
-        failed_responses = [r for r in responses if not r.get("success", True)]
+        result_responses = [r.get("success") if r is not None else None for r in responses]
+        bt.logging.info(f"dendrite result, uids: {uids}, result_responses: {result_responses}")
+        successful_responses = [r for r in responses if r is not None and r.get("success", False)]
+        failed_responses = [r for r in responses if r is None or not r.get("success", True)]
         bt.logging.debug(f"Dendrite summary: {len(successful_responses)} successful, {len(failed_responses)} failed")
 
         # Log the results for monitoring purposes.
         data = {"uids": uids, "responses": responses, "chain": "bittensor", "uid": int(self.uid), "netuid": self.config.netuid}
-        bt.logging.info(
+        bt.logging.debug(
             f"request node/task/validate: {data}"
         )
         try:
