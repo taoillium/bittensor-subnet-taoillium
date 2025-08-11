@@ -122,9 +122,8 @@ class BaseMinerNeuron(BaseNeuron):
                 # For miners, since last_update doesn't change, we use a different epoch calculation
                 # We can use the current block number to determine when to sync
                 current_block = self.block
-                bt.logging.trace(f"Current block: {current_block}")
                 epoch_start_block = (current_block // self.config.neuron.epoch_length) * self.config.neuron.epoch_length
-                
+                bt.logging.trace(f"Current block: {current_block}, epoch_start_block: {epoch_start_block}, epoch_length: {self.config.neuron.epoch_length}")
                 # Wait until we reach the next epoch block
                 while current_block < epoch_start_block + self.config.neuron.epoch_length:
                     # Wait before checking again.
@@ -236,3 +235,28 @@ class BaseMinerNeuron(BaseNeuron):
                 bt.logging.debug(f"Fallback to axon.serve() successful for miner uid: {self.uid}")
             except Exception as fallback_error:
                 bt.logging.error(f"Both subtensor.serve_axon() and axon.serve() failed: {fallback_error}")
+
+    def set_weights(self):
+        """
+        Sets the miner weights for self.uid to 65535.
+        """
+        try:
+            # Set the weights on chain via our subtensor connection.
+            result, msg = self.subtensor.set_weights(
+                wallet=self.wallet,
+                netuid=self.config.netuid,
+                uids=[self.uid],
+                weights=[65535],
+                wait_for_finalization=False,
+                wait_for_inclusion=False,
+                version_key=self.spec_version,
+            )
+            # sync once, ensure get latest chain state
+            self.metagraph.sync(subtensor=self.subtensor)
+            bt.logging.info(f"set_weights: my uid: {self.uid}, weights: 65535, last_update: {self.metagraph.last_update[self.uid]}, block: {self.block}")
+            if result is True:
+                bt.logging.info("set_weights on chain successfully!")
+            else:
+                bt.logging.error("set_weights failed", msg)
+        except Exception as e:
+            bt.logging.error(f"set_weights failed: {e}")

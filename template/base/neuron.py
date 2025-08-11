@@ -288,7 +288,7 @@ class BaseNeuron(ABC):
         return (
             (self.block - self.metagraph.last_update[self.uid])
             > self.get_epoch_length()
-            and self.neuron_type != "miner"
+            # and self.neuron_type != "miner"
         )  # don't set weights if you're a miner
 
     def save_state(self):
