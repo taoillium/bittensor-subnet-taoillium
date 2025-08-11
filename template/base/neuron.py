@@ -270,6 +270,7 @@ class BaseNeuron(ABC):
         """
         Check if enough epoch blocks have elapsed since the last checkpoint to sync.
         """
+        bt.logging.trace(f"block: {self.block}, last_update: {self.metagraph.last_update[self.uid]}, epoch_length: {self.get_epoch_length()}")
         return (
             self.block - self.metagraph.last_update[self.uid]
         ) > self.get_epoch_length()
