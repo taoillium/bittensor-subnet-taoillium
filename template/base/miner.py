@@ -225,7 +225,7 @@ class BaseMinerNeuron(BaseNeuron):
                 netuid=self.config.netuid,
                 axon=self.axon,
             )
-            bt.logging.debug(f"Updated axon information on chain for miner uid: {self.uid}, current block: {self.block}")
+            bt.logging.debug(f"Updated axon information on chain for miner uid: {self.uid}, current block: {self.block}, last_update: {self.metagraph.last_update[self.uid]}")
                 
         except Exception as e:
             bt.logging.warning(f"Failed to update axon on chain via subtensor.serve_axon(): {e}")

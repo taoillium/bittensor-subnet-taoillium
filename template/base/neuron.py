@@ -278,18 +278,21 @@ class BaseNeuron(ABC):
     def should_set_weights(self) -> bool:
         # Don't set weights on initialization.
         if self.step == 0:
+            bt.logging.trace(f"Not setting weights on initialization, step: {self.step}")
             return False
 
         # Check if enough epoch blocks have elapsed since the last epoch.
         if self.config.neuron.disable_set_weights:
+            bt.logging.trace(f"Not setting weights, disable_set_weights: {self.config.neuron.disable_set_weights}")
             return False
 
         # Define appropriate logic for when set weights.
-        return (
-            (self.block - self.metagraph.last_update[self.uid])
-            > self.get_epoch_length()
-            # and self.neuron_type != "miner"
-        )  # don't set weights if you're a miner
+        if (self.block - self.metagraph.last_update[self.uid]) > self.get_epoch_length():
+            bt.logging.trace(f"Should set weights, block: {self.block}, last_update: {self.metagraph.last_update[self.uid]}, epoch_length: {self.get_epoch_length()}")
+            return True
+        else:
+            bt.logging.trace(f"Not setting weights, block: {self.block}, last_update: {self.metagraph.last_update[self.uid]}, epoch_length: {self.get_epoch_length()}")
+            return False
 
     def save_state(self):
         bt.logging.trace(
