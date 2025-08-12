@@ -73,8 +73,14 @@ class Validator(BaseValidatorNeuron):
         elif synapse.input.get("__type__") == "health":
             bt.logging.info(f"Validator health synapse.input: {synapse.input})")
             synapse.output = {"method": "health", "success": True, "uid": self.uid, "device": self.device}
+            return synapse
         elif synapse.input.get("__type__") == "ping":
-            bt.logging.info(f"Validator ping synapse.input: {synapse.input})")
+            if synapse.input.get("from") != self.uid:
+                synapse.output = {"method": "ping", "success": True, "uid": self.uid}
+                bt.logging.info(f"Validator other ping synapse.input: {synapse.input})")
+                return synapse
+            else:
+                bt.logging.info(f"Validator self ping synapse.input: {synapse.input})")
 
         client = ServiceApiClient(self.current_api_key_value)
 
@@ -219,7 +225,14 @@ class Validator(BaseValidatorNeuron):
     async def concurrent_forward(self):
         # For finney network, run forwards sequentially to avoid event loop issues
         try:
-            await self.forward(protocol.ServiceProtocol(input={"__type__": "ping", "from": self.uid}))
+            # Create a ping request with self UID to identify it as self-initiated
+            ping_synapse = protocol.ServiceProtocol(input={
+                "__type__": "ping", 
+                "from": self.uid,
+                "timestamp": time.time()  # Add timestamp for debugging
+            })
+            
+            await self.forward(ping_synapse)
         except Exception as e:
             bt.logging.error(f"Forward call failed: {e}")
             
