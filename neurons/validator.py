@@ -82,13 +82,13 @@ class Validator(BaseValidatorNeuron):
                 return synapse
             else:
                 # Self ping request (from concurrent_forward) - continue with normal logic
-                bt.logging.debug(f"Validator self ping from concurrent_forward, continuing with forward logic")
+                bt.logging.info(f"Validator self ping from concurrent_forward, continuing with forward logic")
         else:
             # Handle unknown external messages to prevent loops
             message_type = synapse.input.get("__type__", "unknown")
             from_uid = synapse.input.get("from", "unknown")
             
-            bt.logging.warning(f"Validator received unknown message type '{message_type}' from UID {from_uid}")
+            bt.logging.info(f"Validator received unknown message type '{message_type}' from UID {from_uid}")
             synapse.output = {
                 "method": "unknown", 
                 "success": False, 
