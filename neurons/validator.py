@@ -67,20 +67,36 @@ class Validator(BaseValidatorNeuron):
         self.resync_metagraph()
         
         bt.logging.debug(f"Validator forward synapse.input: {synapse}")
-        if synapse.input.get("__type__") == "miner":
-            synapse.output = {"error": "validator skip miner task", "uid": self.uid}
-            return synapse
-        elif synapse.input.get("__type__") == "health":
+        if synapse.input.get("__type__") == "health":
             bt.logging.info(f"Validator health synapse.input: {synapse.input})")
             synapse.output = {"method": "health", "success": True, "uid": self.uid, "device": self.device}
             return synapse
         elif synapse.input.get("__type__") == "ping":
-            if synapse.input.get("from") != self.uid:
+            # Handle ping requests from different sources
+            from_uid = synapse.input.get("from")
+            
+            if from_uid != self.uid:
+                # External ping request (from other validators or external sources)
                 synapse.output = {"method": "ping", "success": True, "uid": self.uid}
-                bt.logging.info(f"Validator other ping synapse.input: {synapse.input})")
+                bt.logging.info(f"Validator external ping from UID {from_uid}, responding immediately")
                 return synapse
             else:
-                bt.logging.info(f"Validator self ping synapse.input: {synapse.input})")
+                # Self ping request (from concurrent_forward) - continue with normal logic
+                bt.logging.debug(f"Validator self ping from concurrent_forward, continuing with forward logic")
+        else:
+            # Handle unknown external messages to prevent loops
+            message_type = synapse.input.get("__type__", "unknown")
+            from_uid = synapse.input.get("from", "unknown")
+            
+            bt.logging.warning(f"Validator received unknown message type '{message_type}' from UID {from_uid}")
+            synapse.output = {
+                "method": "unknown", 
+                "success": False, 
+                "uid": self.uid,
+                "error": f"Skip unknown message type: {message_type}",
+                "message": "Validator only handles specific message types"
+            }
+            return synapse
 
         client = ServiceApiClient(self.current_api_key_value)
 
@@ -229,7 +245,8 @@ class Validator(BaseValidatorNeuron):
             ping_synapse = protocol.ServiceProtocol(input={
                 "__type__": "ping", 
                 "from": self.uid,
-                "timestamp": time.time()  # Add timestamp for debugging
+                "timestamp": time.time(),  # Add timestamp for debugging
+                "source": "concurrent_forward"  # Add source identifier
             })
             
             await self.forward(ping_synapse)
@@ -237,6 +254,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"Forward call failed: {e}")
             
         # Add a delay to reduce event loop pressure on all networks
+        # This also prevents rapid successive calls that could cause loops
         await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
             
         # Periodically clean up event loop state for all networks
