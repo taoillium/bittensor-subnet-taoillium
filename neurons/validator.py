@@ -158,6 +158,7 @@ class Validator(BaseValidatorNeuron):
         bt.logging.debug(
             f"request node/task/validate: {data}"
         )
+        bt.logging.debug(f"Debug: picked_uids={picked_uids}, checked_uids={checked_uids}, uids={uids}")
         try:
             result = client.post("/sapi/node/task/validate", json=data)
         except Exception as e:
@@ -173,15 +174,29 @@ class Validator(BaseValidatorNeuron):
             # Use the calculated rewards when validation conditions are met
             rewards = [x / total for x in values]
             bt.logging.debug(f"Scored responses: {rewards}")
-            bt.logging.debug(f"Updating scores: {rewards}, {picked_uids}")
-            self.update_scores(rewards, picked_uids)
+            bt.logging.debug(f"Updating scores: {rewards}, {uids}")
+            
+            # Additional safety check to ensure array lengths match
+            if len(rewards) != len(uids):
+                bt.logging.error(f"Array length mismatch: rewards={len(rewards)}, uids={len(uids)}")
+                bt.logging.error(f"rewards: {rewards}, uids: {uids}")
+                # Skip score update to prevent crash
+            else:
+                self.update_scores(rewards, uids)
         else:
             # When validation conditions are not met, use empty rewards (will trigger stake-only scoring)
             bt.logging.warning(f"Validation conditions not met, using stake-only scoring. Result: {result}")
-            empty_rewards = [0.0] * len(picked_uids)  # Empty rewards to trigger stake-only mode
+            empty_rewards = [0.0] * len(uids)  # Empty rewards to trigger stake-only mode
             bt.logging.debug(f"Empty rewards: {empty_rewards}")
-            bt.logging.debug(f"Updating scores with stake-only rewards: {picked_uids}")
-            self.update_scores(empty_rewards, picked_uids)
+            bt.logging.debug(f"Updating scores with stake-only rewards: {uids}")
+            
+            # Additional safety check to ensure array lengths match
+            if len(empty_rewards) != len(uids):
+                bt.logging.error(f"Array length mismatch: empty_rewards={len(empty_rewards)}, uids={len(uids)}")
+                bt.logging.error(f"empty_rewards: {empty_rewards}, uids: {uids}")
+                # Skip score update to prevent crash
+            else:
+                self.update_scores(empty_rewards, uids)
         
         synapse.output = result
         return synapse
