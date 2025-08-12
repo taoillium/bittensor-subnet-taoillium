@@ -171,8 +171,8 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info(f"Validator starting at block: {self.block}")
 
         # This loop maintains the validator's operations until intentionally stopped.
-        try:
-            while True:
+        while True:
+            try:
                 bt.logging.debug(f"step({self.step}) block({self.block})")
 
                 # Run multiple forwards concurrently.
@@ -187,15 +187,19 @@ class BaseValidatorNeuron(BaseNeuron):
 
                 self.step += 1
 
-        # If someone intentionally stops the validator, it'll safely terminate.
-        except KeyboardInterrupt:
-            bt.logging.info("Validator interrupted by keyboard.")
-            self.should_exit = True
+            # If someone intentionally stops the validator, it'll safely terminate.
+            except KeyboardInterrupt:
+                bt.logging.info("Validator interrupted by keyboard.")
+                self.should_exit = True
+                break
 
-        # In case of unforeseen errors, the validator will log the error and continue operations.
-        except Exception as e:
-            bt.logging.error(f"Validator error: {e}")
-            bt.logging.debug(f"Validator traceback: {traceback.format_exc()}")
+            # In case of unforeseen errors, the validator will log the error and continue operations.
+            except Exception as e:
+                bt.logging.error(f"Validator error in main loop: {e}")
+                bt.logging.debug(f"Validator traceback: {traceback.format_exc()}")
+                # Add a small delay before retrying to prevent rapid error loops
+                await asyncio.sleep(1)
+                continue
 
         # Always save state before exiting.
         self.save_state()

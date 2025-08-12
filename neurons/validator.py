@@ -194,18 +194,38 @@ class Validator(BaseValidatorNeuron):
                 axon = self.metagraph.axons[uid]
                 bt.logging.debug(f"_check_axon_valid UID {uid} axon: {axon.ip}:{axon.port}, serving: {axon.is_serving}")
             
-            # Use individual calls with minimal configuration
-            responses = await self.dendrite(
-                # Send the query to selected miner axons in the network.
-                axons=[self.metagraph.axons[uid] for uid in checked_uids],
-                # Construct a dummy query. This simply contains a single integer.
-                synapse=synapse,
-                # All responses have the deserialize function called on them before returning.
-                # You are encouraged to define your own deserialization function.
-                deserialize=True,
-            )
-            
-            bt.logging.debug(f"Completed individual dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
+            # Add timeout and better error handling for dendrite calls
+            try:
+                # Use individual calls with minimal configuration and timeout
+                responses = await asyncio.wait_for(
+                    self.dendrite(
+                        # Send the query to selected miner axons in the network.
+                        axons=[self.metagraph.axons[uid] for uid in checked_uids],
+                        # Construct a dummy query. This simply contains a single integer.
+                        synapse=synapse,
+                        # All responses have the deserialize function called on them before returning.
+                        # You are encouraged to define your own deserialization function.
+                        deserialize=True,
+                    ),
+                    timeout=30.0  # 30 second timeout to prevent hanging
+                )
+                
+                bt.logging.debug(f"Completed individual dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
+                
+            except asyncio.TimeoutError:
+                bt.logging.warning(f"Dendrite calls timed out after 30 seconds for {len(checked_uids)} UIDs")
+                # Create timeout responses for all UIDs
+                responses = []
+                for uid in checked_uids:
+                    timeout_response = {"method": "ping", "success": False, "uid": uid, "error": "timeout"}
+                    responses.append(timeout_response)
+            except Exception as dendrite_error:
+                bt.logging.error(f"Dendrite calls failed: {dendrite_error}")
+                # Create error responses for all UIDs when dendrite calls fail
+                responses = []
+                for uid in checked_uids:
+                    error_response = {"method": "ping", "success": False, "uid": uid, "error": str(dendrite_error)}
+                    responses.append(error_response)
             
         except Exception as e:
             bt.logging.error(f"Individual dendrite calls failed: {e}")
@@ -240,6 +260,8 @@ class Validator(BaseValidatorNeuron):
 
     async def concurrent_forward(self):
         # For finney network, run forwards sequentially to avoid event loop issues
+        bt.logging.debug(f"Starting concurrent_forward iteration at step {getattr(self, 'step', 'unknown')}")
+        
         try:
             # Create a ping request with self UID to identify it as self-initiated
             ping_synapse = protocol.ServiceProtocol(input={
@@ -250,27 +272,39 @@ class Validator(BaseValidatorNeuron):
             })
             
             await self.forward(ping_synapse)
+            bt.logging.debug(f"Completed concurrent_forward iteration successfully")
         except Exception as e:
             bt.logging.error(f"Forward call failed: {e}")
+            # Don't let forward failures stop the main loop
+            # Just log and continue
             
         # Add a delay to reduce event loop pressure on all networks
         # This also prevents rapid successive calls that could cause loops
         await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
             
-        # Periodically clean up event loop state for all networks
+        # More conservative event loop cleanup - only when absolutely necessary
         try:
             loop = asyncio.get_running_loop()
-            # Cancel any pending tasks that might be causing issues
+            # Only clean up if there are excessive pending tasks
             pending_tasks = [task for task in asyncio.all_tasks(loop) if not task.done()]
-            if len(pending_tasks) > 10:  # If too many pending tasks
+            if len(pending_tasks) > 20:  # Increased threshold to be less aggressive
                 bt.logging.warning(f"Too many pending tasks: {len(pending_tasks)}, cleaning up...")
-                # Cancel tasks that are not the main validator task
+                # Only cancel tasks that are clearly stuck, not the main validator task
+                cancelled_count = 0
                 for task in pending_tasks:
-                    if not task.done() and task.get_name() != "Validator":
-                        task.cancel()
-                        bt.logging.debug(f"Cancelled task: {task.get_name()}")
+                    if (not task.done() and 
+                        task.get_name() != "Validator" and 
+                        not task.get_name().startswith("Validator")):
+                        try:
+                            task.cancel()
+                            cancelled_count += 1
+                            bt.logging.debug(f"Cancelled task: {task.get_name()}")
+                        except Exception:
+                            pass  # Ignore errors when cancelling tasks
+                bt.logging.debug(f"Cleaned up {cancelled_count} pending tasks")
         except Exception as cleanup_error:
             bt.logging.debug(f"Event loop cleanup failed: {cleanup_error}")
+            # Don't let cleanup errors stop the main loop
 
 
 # The main function parses the configuration and runs the validator.
