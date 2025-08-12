@@ -6,8 +6,8 @@ cd $CURRENT_DIR/../
 VALIDATOR_PORT=${VALIDATOR_PORT:-8092}
 port=${1:-$VALIDATOR_PORT}
 
-# Set validator wallet with fallback chain: VALIDATOR_WALLET -> WALLET_NAME -> validator
-VALIDATOR_WALLET=$2
+# Set validator wallet with fallback chain: $2 -> VALIDATOR_WALLET -> WALLET_NAME -> validator
+VALIDATOR_WALLET=${2:-$VALIDATOR_WALLET}
 VALIDATOR_WALLET=${VALIDATOR_WALLET:-$WALLET_NAME}
 VALIDATOR_WALLET=${VALIDATOR_WALLET:-validator}
 
