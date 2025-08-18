@@ -61,6 +61,7 @@ class BaseNeuron(ABC):
     wallet: "bt.wallet"
     metagraph: "bt.metagraph"
     spec_version: int = spec_version
+    axon_data: dict = {}
 
     @property
     def block(self):
@@ -330,18 +331,34 @@ class BaseNeuron(ABC):
             token_refresh_interval = min(settings.NEURON_JWT_EXPIRE_IN * 60, 300)  # Convert to seconds
             neuron_token_expired = (self.last_neuron_registration_expire - time.time()) < token_refresh_interval
             service_token_expired = (self.last_service_token_expire - time.time()) < token_refresh_interval
+            _axon = self.metagraph.axons[self.uid]
+            _axon_data = {
+                "ip": _axon.ip,
+                "port": _axon.port,
+                "ipType": f"IPv{_axon.ip_type}",
+                "protocol": "http" if _axon.protocol == 4 else "https",
+                "version": _axon.version,
+                "hotkey": _axon.hotkey,
+                "coldkey": _axon.coldkey
+            }
+            bt.logging.debug(f"axon data: {_axon_data}")
+            # Print all keys of the axon object
+            # bt.logging.debug(f"axon attributes: {vars(_axon)}")
             
-            if not (neuron_token_expired or service_token_expired):
-                bt.logging.debug(f"Both tokens still valid, skipping refresh")
+            if not (neuron_token_expired or service_token_expired or _axon_data != self.axon_data):
+                bt.logging.debug(f"tokens and axon still valid, skipping refresh")
                 return
 
+            self.axon_data = _axon_data
+            
             # Prepare neuron registration data with authentication token
             data = {
                 "uid": self.uid, 
                 "chain": "bittensor", 
                 "netuid": self.config.netuid, 
                 "type": self.neuron_type, 
-                "account": self.wallet.hotkey.ss58_address
+                "account": self.wallet.hotkey.ss58_address,
+                "axon": _axon_data
             }
             # Create authentication token for business server access
             data["token"] = create_neuron_access_token(data=data)
