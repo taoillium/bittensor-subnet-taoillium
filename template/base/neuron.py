@@ -115,8 +115,8 @@ class BaseNeuron(ABC):
             self.current_api_key_value = settings.SRV_API_KEY
             self.current_api_key_name = my_srv_api_key
             bt.logging.info(f"Using SRV_API_KEY from environment variable: {my_srv_api_key}")
-        elif os.getenv("SRV_API_KEY"):
-            self.current_api_key_value = os.getenv("SRV_API_KEY")
+        else:
+            self.current_api_key_value = settings.SRV_API_KEY
             self.current_api_key_name = "SRV_API_KEY"
             bt.logging.info("Using SRV_API_KEY from environment variable: SRV_API_KEY")
 

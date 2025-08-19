@@ -11,7 +11,7 @@ load_dotenv(env_file_path, override=True)
 class Settings(BaseSettings):
     DETECT_IP: str = os.getenv("DETECT_IP", "8.8.8.8")
     SRV_API_URL: str = os.getenv("SRV_API_URL", "https://api.taoillium.ai")
-    SRV_API_KEY: str = os.getenv("SRV_API_KEY")
+    SRV_API_KEY: str = os.getenv("SRV_API_KEY", '')
 
     NEURON_JWT_SECRET_KEY: str = os.getenv("NEURON_JWT_SECRET_KEY")
     NEURON_JWT_EXPIRE_IN: int = int(os.getenv("NEURON_JWT_EXPIRE_IN", "30"))
