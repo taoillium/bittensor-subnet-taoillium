@@ -85,11 +85,11 @@ btcli wallet transfer --subtensor.network ${chain_endpoint} --wallet.name $walle
 
 
 echo "Registering validator to subnet"
-btcli subnet register --wallet.name validator --netuid $netuid --wallet.hotkey default --subtensor.chain_endpoint ${chain_endpoint}
+btcli subnet register --wallet.name validator --wallet.hotkey default --netuid $netuid --subtensor.chain_endpoint ${chain_endpoint}
 
 # Register wallet hotkeys to subnet
 echo "Registering miner to subnet"
-btcli subnet register --wallet.name miner --netuid $netuid --wallet.hotkey default --subtensor.chain_endpoint ${chain_endpoint}
+btcli subnet register --wallet.name miner --wallet.hotkey default --netuid $netuid  --subtensor.chain_endpoint ${chain_endpoint}
 
 
 echo "Adding stake to the validator"
