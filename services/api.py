@@ -1,6 +1,7 @@
 import requests
 from .config import settings
 import socket
+from template import __spec_version__ as spec_version
 import logging
 
 

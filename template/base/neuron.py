@@ -155,13 +155,11 @@ class BaseNeuron(ABC):
             "message": login_time,
             "ss58Address": self.wallet.hotkey.ss58_address,
             "timestamp": login_time,
-            "type": "web3_"+self.neuron_type,
         }
 
         bt.logging.debug(f"Sign result: {sign_result}")
         try:
-            client = ServiceApiClient(self.current_api_key_value)
-            result = client.post("/auth/tao/login", json=sign_result)
+            result = self.api_post("/auth/tao/login", sign_result)
             if result.get("nodeToken"):
                 self.current_api_key_value = result.get("nodeToken").get("access_token")
                 self.last_service_token_expire = result.get("nodeToken").get("exp")
@@ -331,19 +329,7 @@ class BaseNeuron(ABC):
             token_refresh_interval = min(settings.NEURON_JWT_EXPIRE_IN * 60, 300)  # Convert to seconds
             neuron_token_expired = (self.last_neuron_registration_expire - time.time()) < token_refresh_interval
             service_token_expired = (self.last_service_token_expire - time.time()) < token_refresh_interval
-            _axon = self.metagraph.axons[self.uid]
-            _axon_data = {
-                "ip": _axon.ip,
-                "port": _axon.port,
-                "ipType": f"IPv{_axon.ip_type}",
-                "protocol": "http" if _axon.protocol == 4 else "https",
-                "version": _axon.version,
-                "hotkey": _axon.hotkey,
-                "coldkey": _axon.coldkey
-            }
-            bt.logging.debug(f"axon data: {_axon_data}")
-            # Print all keys of the axon object
-            # bt.logging.debug(f"axon attributes: {vars(_axon)}")
+            _axon_data = self.get_axon_data()
             
             if not (neuron_token_expired or service_token_expired or _axon_data != self.axon_data):
                 bt.logging.debug(f"tokens and axon still valid, skipping refresh")
@@ -352,21 +338,13 @@ class BaseNeuron(ABC):
             self.axon_data = _axon_data
             
             # Prepare neuron registration data with authentication token
-            data = {
-                "uid": self.uid, 
-                "chain": "bittensor", 
-                "netuid": self.config.netuid, 
-                "type": self.neuron_type, 
-                "account": self.wallet.hotkey.ss58_address,
-                "axon": _axon_data
-            }
+            data = {}
             # Create authentication token for business server access
             data["token"] = create_neuron_access_token(data=data)
             
             # Register neuron with business server and get both tokens
             # This is the correct approach - registration includes token exchange
-            client = ServiceApiClient(self.current_api_key_value)
-            result = client.post("/sapi/node/neuron/register", json=data)
+            result = self.api_post("/sapi/node/neuron/register", data)
             bt.logging.debug(f"Register with business server result: {result}")
             
             if result.get("success"):
@@ -383,3 +361,36 @@ class BaseNeuron(ABC):
                 bt.logging.error(f"Failed to register with business server: {result}")
         except Exception as e:
             bt.logging.error(f"Failed to refresh business server access: {e}")
+
+    def get_axon_data(self):
+        _axon = self.metagraph.axons[self.uid]
+        _axon_data = {
+            "ip": _axon.ip,
+            "port": _axon.port,
+            "ipType": f"IPv{_axon.ip_type}",
+            "protocol": "http" if _axon.protocol == 4 else "https",
+            "version": _axon.version,
+            "hotkey": _axon.hotkey,
+            "coldkey": _axon.coldkey
+        }
+        bt.logging.debug(f"axon data: {_axon_data}")
+        # Print all keys of the axon object
+        # bt.logging.debug(f"axon attributes: {vars(_axon)}")
+        return _axon_data
+
+    def api_post(self, endpoint: str, data: dict = None):
+        try:
+            payload = copy.deepcopy(data)
+            client = ServiceApiClient(self.current_api_key_value)
+            payload["version"] = self.spec_version
+            payload["uid"] = int(self.uid)
+            payload["account"] = self.wallet.hotkey.ss58_address
+            payload["chain"] = "bittensor"
+            payload["netuid"] = self.config.netuid
+            payload["type"] = self.neuron_type
+            payload["axon"] = self.get_axon_data()
+
+            return client.post(endpoint, json=payload)
+        except Exception as e:
+            bt.logging.error(f"Failed to post to business server: {e}")
+            return None

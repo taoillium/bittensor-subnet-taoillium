@@ -154,13 +154,13 @@ class Validator(BaseValidatorNeuron):
         bt.logging.debug(f"Dendrite summary: {len(successful_responses)} successful, {len(failed_responses)} failed")
 
         # Log the results for monitoring purposes.
-        data = {"uids": uids, "responses": responses, "chain": "bittensor", "uid": int(self.uid), "netuid": self.config.netuid}
+        data = {"uids": uids, "responses": responses}
         bt.logging.debug(
             f"request node/task/validate: {data}"
         )
         bt.logging.debug(f"Debug: picked_uids={picked_uids}, checked_uids={checked_uids}, uids={uids}")
         try:
-            result = client.post("/sapi/node/task/validate", json=data)
+            result = self.api_post("/sapi/node/task/validate", data)
         except Exception as e:
             bt.logging.error(f"ServiceApiClient call failed: {e}")
             result = {"error": str(e), "values": [], "uids": uids}
