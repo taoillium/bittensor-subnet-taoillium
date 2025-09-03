@@ -69,7 +69,7 @@ if [ "$network" == "local" ]; then
     rc=$?
     if [ $rc -ne 0 ]; then
         echo "Error: $http_endpoint is not running, please start the local chain (subtensor localnet)"
-        echo "Please run the following command to start the local chain:"
+        echo "Please run the following command to start the local chain (docs/running_on_staging.md):"
         echo "cd ../subtensor && BUILD_BINARY=1 ./scripts/localnet.sh --no-purge"
         exit 1
     fi
