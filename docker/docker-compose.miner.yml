@@ -19,4 +19,31 @@ services:
       - BT_SUBTENSOR_CHAIN_ENDPOINT=${CHAIN_ENDPOINT:-ws://host.docker.internal:9944}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    restart: unless-stopped 
+    restart: unless-stopped
+    # Resource limits optimized for 4-core 8GB system
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+        reservations:
+          memory: 1G
+          cpus: '0.25'
+    # File descriptor limits
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+      nproc:
+        soft: 32768
+        hard: 32768
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:${MINER_PORT:-8091}/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s 

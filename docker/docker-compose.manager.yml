@@ -18,9 +18,30 @@ services:
       - MANAGER_PORT=${MANAGER_PORT:-8000}
       - BT_SUBTENSOR_CHAIN_ENDPOINT=${CHAIN_ENDPOINT:-ws://host.docker.internal:9944}
     restart: unless-stopped
+    # Resource limits optimized for 4-core 8GB system
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    # File descriptor limits
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+      nproc:
+        soft: 32768
+        hard: 32768
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    # Health check with shorter intervals
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${MANAGER_PORT:-8000}/health"]
-      interval: 30s
-      timeout: 10s
+      interval: 15s
+      timeout: 5s
       retries: 3
-      start_period: 40s
+      start_period: 30s

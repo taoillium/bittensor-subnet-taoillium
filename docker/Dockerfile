@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     procps \
     lsof \
+    htop \
+    netstat-nat \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
@@ -20,6 +22,9 @@ COPY requirements.txt .
 
 # Install python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional monitoring dependencies
+RUN pip install --no-cache-dir psutil
 
 # Copy all source code
 COPY . .
@@ -44,24 +49,14 @@ echo "Current directory: $(pwd)"\n\
 echo "Testing Python import..."\n\
 python -c "import sys; print(\"Python path:\", sys.path)"\n\
 python -c "import services; print(\"services module imported successfully\")" || echo "Failed to import services"\n\
-case "$SERVICE_TYPE" in\n\
-    "manager")\n\
-        echo "Starting manager service..."\n\
-        ./scripts/start_manager.sh\n\
-        ;;\n\
-    "miner")\n\
-        echo "Starting miner service..."\n\
-        ./scripts/start_miner.sh\n\
-        ;;\n\
-    "validator")\n\
-        echo "Starting validator service..."\n\
-        ./scripts/start_validator.sh\n\
-        ;;\n\
-    *)\n\
-        echo "Unknown service type: $SERVICE_TYPE"\n\
-        exit 1\n\
-        ;;\n\
-esac' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+\n\
+# Set resource limits\n\
+ulimit -n 65536\n\
+ulimit -u 32768\n\
+\n\
+# Start service with resource monitoring\n\
+echo "Starting service with resource monitoring..."\n\
+./scripts/start_with_monitor.sh' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Use entrypoint script
 ENTRYPOINT ["/app/entrypoint.sh"] 
