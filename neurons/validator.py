@@ -203,6 +203,9 @@ class Validator(BaseValidatorNeuron):
     
     async def _check_axon_valid(self, checked_uids, synapse: protocol.ServiceProtocol):
         # Use conservative dendrite calls to minimize context manager issues
+        responses = []
+        dendrite_task = None
+        
         try:
             # Debug axon information
             for uid in checked_uids:
@@ -211,8 +214,8 @@ class Validator(BaseValidatorNeuron):
             
             # Add timeout and better error handling for dendrite calls
             try:
-                # Use individual calls with minimal configuration and timeout
-                responses = await asyncio.wait_for(
+                # Create dendrite call task
+                dendrite_task = asyncio.create_task(
                     self.dendrite(
                         # Send the query to selected miner axons in the network.
                         axons=[self.metagraph.axons[uid] for uid in checked_uids],
@@ -221,21 +224,40 @@ class Validator(BaseValidatorNeuron):
                         # All responses have the deserialize function called on them before returning.
                         # You are encouraged to define your own deserialization function.
                         deserialize=True,
-                    ),
-                    timeout=30.0  # 30 second timeout to prevent hanging
+                    )
                 )
                 
-                bt.logging.debug(f"Completed individual dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
+                # Use shorter timeout to prevent hanging
+                responses = await asyncio.wait_for(dendrite_task, timeout=15.0)
+                
+                bt.logging.debug(f"Completed dendrite calls for {len(checked_uids)} UIDs on {self.config.subtensor.network} network")
                 
             except asyncio.TimeoutError:
-                bt.logging.warning(f"Dendrite calls timed out after 30 seconds for {len(checked_uids)} UIDs")
+                bt.logging.warning(f"Dendrite calls timed out after 15 seconds for {len(checked_uids)} UIDs")
+                # Cancel the dendrite task if it's still running
+                if dendrite_task and not dendrite_task.done():
+                    dendrite_task.cancel()
+                    try:
+                        await dendrite_task
+                    except asyncio.CancelledError:
+                        pass
+                
                 # Create timeout responses for all UIDs
                 responses = []
                 for uid in checked_uids:
                     timeout_response = {"method": "ping", "success": False, "uid": uid, "error": "timeout"}
                     responses.append(timeout_response)
+                    
             except Exception as dendrite_error:
                 bt.logging.error(f"Dendrite calls failed: {dendrite_error}")
+                # Cancel the dendrite task if it's still running
+                if dendrite_task and not dendrite_task.done():
+                    dendrite_task.cancel()
+                    try:
+                        await dendrite_task
+                    except asyncio.CancelledError:
+                        pass
+                
                 # Create error responses for all UIDs when dendrite calls fail
                 responses = []
                 for uid in checked_uids:
@@ -244,11 +266,28 @@ class Validator(BaseValidatorNeuron):
             
         except Exception as e:
             bt.logging.error(f"Individual dendrite calls failed: {e}")
+            # Cancel the dendrite task if it's still running
+            if dendrite_task and not dendrite_task.done():
+                dendrite_task.cancel()
+                try:
+                    await dendrite_task
+                except asyncio.CancelledError:
+                    pass
+            
             # Create error responses for all UIDs when all calls fail
             responses = []
             for uid in checked_uids:
                 error_response = {"method": "ping", "success": False, "uid": uid, "error": str(e)}
                 responses.append(error_response)
+        
+        # Force cleanup of any remaining connections
+        try:
+            # Force garbage collection to clean up any lingering connections
+            import gc
+            gc.collect()
+        except Exception:
+            pass
+            
         return responses
 
 
@@ -297,26 +336,48 @@ class Validator(BaseValidatorNeuron):
         # This also prevents rapid successive calls that could cause loops
         await asyncio.sleep(settings.VALIDATOR_SLEEP_TIME)
             
-        # More conservative event loop cleanup - only when absolutely necessary
+        # More aggressive event loop cleanup to prevent resource leaks
         try:
             loop = asyncio.get_running_loop()
-            # Only clean up if there are excessive pending tasks
+            # Get all pending tasks
             pending_tasks = [task for task in asyncio.all_tasks(loop) if not task.done()]
-            if len(pending_tasks) > 20:  # Increased threshold to be less aggressive
+            
+            # More aggressive cleanup threshold
+            if len(pending_tasks) > 10:  # Reduced threshold for more frequent cleanup
                 bt.logging.warning(f"Too many pending tasks: {len(pending_tasks)}, cleaning up...")
-                # Only cancel tasks that are clearly stuck, not the main validator task
+                
+                # Cancel tasks that are clearly stuck or not essential
                 cancelled_count = 0
                 for task in pending_tasks:
+                    task_name = task.get_name()
+                    # Cancel non-essential tasks
                     if (not task.done() and 
-                        task.get_name() != "Validator" and 
-                        not task.get_name().startswith("Validator")):
+                        task_name != "Validator" and 
+                        not task_name.startswith("Validator") and
+                        not task_name.startswith("MainThread") and
+                        "dendrite" not in task_name.lower()):
                         try:
                             task.cancel()
                             cancelled_count += 1
-                            bt.logging.debug(f"Cancelled task: {task.get_name()}")
-                        except Exception:
-                            pass  # Ignore errors when cancelling tasks
+                            bt.logging.debug(f"Cancelled task: {task_name}")
+                        except Exception as cancel_error:
+                            bt.logging.debug(f"Failed to cancel task {task_name}: {cancel_error}")
+                
+                # Wait for cancelled tasks to complete
+                if cancelled_count > 0:
+                    try:
+                        await asyncio.sleep(0.1)  # Brief wait for cancellation
+                    except Exception:
+                        pass
+                
                 bt.logging.debug(f"Cleaned up {cancelled_count} pending tasks")
+            
+            # Force garbage collection to clean up any lingering objects
+            import gc
+            collected = gc.collect()
+            if collected > 0:
+                bt.logging.debug(f"Garbage collected {collected} objects")
+                
         except Exception as cleanup_error:
             bt.logging.debug(f"Event loop cleanup failed: {cleanup_error}")
             # Don't let cleanup errors stop the main loop
