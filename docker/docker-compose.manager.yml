@@ -22,11 +22,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1.5G
-          cpus: '1.0'
+          memory: ${MEMORY_LIMIT:-2G}
+          cpus: ${CPU_LIMIT:-1}
         reservations:
-          memory: 512M
-          cpus: '0.25'
+          memory: ${MEMORY_RESERVATION:-512M}
+          cpus: ${CPU_RESERVATION:-0.25}
     # File descriptor limits
     ulimits:
       nofile:
